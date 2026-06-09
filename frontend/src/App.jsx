@@ -12,6 +12,7 @@ import Report from './pages/Report';
 import PublicReport from './pages/PublicReport';
 import ReferrerForm from './pages/ReferrerForm';
 import EmployerDashboard from './pages/EmployerDashboard';
+import SampleReport from './pages/SampleReport';
 
 function PrivateRoute({ children, role }) {
   const { user } = useAuth();
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/ref/:token" element={<ReferrerForm />} />
         <Route path="/report/share/:shareToken" element={<PublicReport />} />
+        <Route path="/sample-report" element={<SampleReport />} />
 
         {/* Job Seeker */}
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
