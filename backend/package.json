@@ -1,0 +1,27 @@
+{
+  "name": "erefs-backend",
+  "version": "1.0.0",
+  "description": "eRefs.ai Node.js API",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@ai-sdk/groq": "^3.0.39",
+    "@anthropic-ai/sdk": "^0.20.0",
+    "ai": "^6.0.198",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.9.7",
+    "ollama": "^0.6.3",
+    "pg": "^8.11.3",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
