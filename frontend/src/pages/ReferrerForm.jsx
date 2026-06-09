@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 
 const QUESTIONS = [
   { n: 1, text: 'How long have you known this person and in what capacity?', type: 'text' },
@@ -22,7 +22,7 @@ export default function ReferrerForm() {
   const [status, setStatus] = useState('loading'); // loading | form | submitted | error
 
   useEffect(() => {
-    axios.get(`/api/referrers/${token}`)
+    api.get(`/api/referrers/${token}`)
       .then(r => { setReferrer(r.data); setStatus('form'); })
       .catch(() => setStatus('error'));
   }, [token]);
@@ -39,7 +39,7 @@ export default function ReferrerForm() {
       rating: answers[q.n]?.rating || null,
     }));
     try {
-      await axios.post(`/api/referrers/${token}/submit`, { answers: payload });
+      await api.post(`/api/referrers/${token}/submit`, { answers: payload });
       setStatus('submitted');
     } catch (err) {
       alert(err.response?.data?.error || 'Submission failed');

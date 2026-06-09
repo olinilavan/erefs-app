@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts';
 
 export default function Report() {
@@ -8,7 +8,7 @@ export default function Report() {
   const [report, setReport] = useState(null);
 
   useEffect(() => {
-    axios.get(`/api/reports/${id}`).then(r => setReport(r.data));
+    api.get(`/api/reports/${id}`).then(r => setReport(r.data));
   }, [id]);
 
   if (!report) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading report...</div>;

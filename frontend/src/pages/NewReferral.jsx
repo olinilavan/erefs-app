@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 
 export default function NewReferral() {
   const [targetRole, setTargetRole] = useState('');
@@ -22,7 +22,7 @@ export default function NewReferral() {
     setLoading(true);
     setError('');
     try {
-      const res = await axios.post('/api/referrals', { targetRole, referrers });
+      const res = await api.post('/api/referrals', { targetRole, referrers });
       navigate(`/references/${res.data.referralRequest.id}`);
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong');

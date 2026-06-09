@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 
 const STATUS_STYLE = {
   completed: 'bg-green-100 text-green-700',
@@ -37,7 +37,7 @@ export default function ReferralDetail() {
   const [adding, setAdding] = useState(false);
 
   function load() {
-    axios.get(`/api/referrals/${id}`).then(r => setRows(r.data));
+    api.get(`/api/referrals/${id}`).then(r => setRows(r.data));
   }
 
   useEffect(() => { load(); }, [id]);
@@ -50,7 +50,7 @@ export default function ReferralDetail() {
     e.preventDefault();
     setAdding(true);
     try {
-      await axios.post(`/api/referrals/${id}/referrers`, { name: newName, email: newEmail });
+      await api.post(`/api/referrals/${id}/referrers`, { name: newName, email: newEmail });
       setNewName('');
       setNewEmail('');
       setAddOpen(false);

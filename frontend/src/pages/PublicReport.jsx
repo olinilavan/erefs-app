@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts';
 
 export default function PublicReport() {
@@ -9,7 +9,7 @@ export default function PublicReport() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    axios.get(`/api/reports/share/${shareToken}`)
+    api.get(`/api/reports/share/${shareToken}`)
       .then(r => setReport(r.data))
       .catch(() => setError(true));
   }, [shareToken]);

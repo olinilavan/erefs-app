@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import { useAuth } from '../context/AuthContext';
 
 const statusColor = { pending: 'bg-yellow-100 text-yellow-700', completed: 'bg-green-100 text-green-700' };
@@ -10,7 +10,7 @@ export default function Dashboard() {
   const [requests, setRequests] = useState([]);
 
   useEffect(() => {
-    axios.get('/api/referrals').then(r => setRequests(r.data));
+    api.get('/api/referrals').then(r => setRequests(r.data));
   }, []);
 
   return (

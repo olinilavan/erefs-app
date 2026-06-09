@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import { useAuth } from '../context/AuthContext';
 
 export default function EmployerDashboard() {
@@ -10,7 +10,7 @@ export default function EmployerDashboard() {
   const [form, setForm] = useState({ candidateName: '', candidateEmail: '', targetRole: '', referrers: [{ name: '', email: '' }] });
 
   useEffect(() => {
-    axios.get('/api/employer/candidates').then(r => setCandidates(r.data));
+    api.get('/api/employer/candidates').then(r => setCandidates(r.data));
   }, []);
 
   const addReferrer = () => setForm({ ...form, referrers: [...form.referrers, { name: '', email: '' }] });
@@ -22,13 +22,13 @@ export default function EmployerDashboard() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await axios.post('/api/referrals', {
+    await api.post('/api/referrals', {
       candidateName: form.candidateName,
       candidateEmail: form.candidateEmail,
       targetRole: form.targetRole,
       referrers: form.referrers,
     });
-    const res = await axios.get('/api/employer/candidates');
+    const res = await api.get('/api/employer/candidates');
     setCandidates(res.data);
     setShowNewRequest(false);
   };
