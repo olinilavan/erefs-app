@@ -1,14 +1,7 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-const isDev = !process.env.EMAIL_PASS || process.env.EMAIL_PASS === 'your_sendgrid_api_key';
-
-const transporter = isDev
-  ? null
-  : nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: process.env.EMAIL_PORT,
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-    });
+const isDev = !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 'your_resend_api_key';
+const resend = isDev ? null : new Resend(process.env.RESEND_API_KEY);
 
 async function sendReferrerInvite(referrer, referralRequest, requester) {
   const formUrl = `${process.env.FRONTEND_URL}/ref/${referrer.token}`;
@@ -20,8 +13,8 @@ async function sendReferrerInvite(referrer, referralRequest, requester) {
     return;
   }
 
-  await transporter.sendMail({
-    from: `"eRefs.ai" <${process.env.EMAIL_FROM}>`,
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
     to: referrer.email,
     subject: `Reference Request for ${candidateName}`,
     html: `
@@ -40,6 +33,12 @@ async function sendReferrerInvite(referrer, referralRequest, requester) {
       </div>
     `,
   });
+
+  if (error) {
+    console.error('[email send failed]', error);
+    throw new Error(error.message);
+  }
+  console.log('[email sent]', data?.id, '→', referrer.email);
 }
 
 module.exports = { sendReferrerInvite };

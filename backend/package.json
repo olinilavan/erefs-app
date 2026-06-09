@@ -19,6 +19,7 @@
     "nodemailer": "^6.9.7",
     "ollama": "^0.6.3",
     "pg": "^8.11.3",
+    "resend": "^6.12.4",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
