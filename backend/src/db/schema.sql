@@ -10,6 +10,10 @@ CREATE TABLE users (
   name VARCHAR(255) NOT NULL,
   company VARCHAR(255),
   headline VARCHAR(255),
+  require_work_email BOOLEAN DEFAULT false,
+  reminder_days INT DEFAULT 7,
+  subscription_plan VARCHAR(20) DEFAULT 'beta',
+  subscription_started_at TIMESTAMP DEFAULT NOW(),
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -31,6 +35,7 @@ CREATE TABLE referral_requests (
   job_id UUID REFERENCES jobs(id),
   target_role VARCHAR(255),
   status VARCHAR(20) DEFAULT 'pending',
+  archived_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW()
 );
 

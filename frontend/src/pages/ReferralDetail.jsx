@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api';
+import { isPersonalEmail } from '../utils/emailValidation';
 
 const STATUS_STYLE = {
   completed: 'bg-green-100 text-green-700',
@@ -35,6 +36,12 @@ export default function ReferralDetail() {
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState('');
+  const [requireWorkEmail, setRequireWorkEmail] = useState(false);
+
+  useEffect(() => {
+    api.get('/api/settings').then(r => setRequireWorkEmail(r.data.require_work_email)).catch(() => {});
+  }, []);
 
   function load() {
     api.get(`/api/referrals/${id}`).then(r => setRows(r.data));
@@ -48,6 +55,11 @@ export default function ReferralDetail() {
 
   async function addReferrer(e) {
     e.preventDefault();
+    setAddError('');
+    if (requireWorkEmail && isPersonalEmail(newEmail)) {
+      setAddError('Work email required — please use a corporate email address.');
+      return;
+    }
     setAdding(true);
     try {
       await api.post(`/api/referrals/${id}/referrers`, { name: newName, email: newEmail });
@@ -55,6 +67,8 @@ export default function ReferralDetail() {
       setNewEmail('');
       setAddOpen(false);
       load();
+    } catch (err) {
+      setAddError(err.response?.data?.error || 'Something went wrong');
     } finally {
       setAdding(false);
     }
@@ -84,6 +98,11 @@ export default function ReferralDetail() {
               <span className={`text-xs px-3 py-1 rounded-full font-medium ${STATUS_STYLE[request?.status] || 'bg-gray-100 text-gray-600'}`}>
                 {request?.status}
               </span>
+              {request?.archived_at && (
+                <span className="text-xs px-3 py-1 rounded-full font-medium bg-gray-100 text-gray-500">
+                  Archived
+                </span>
+              )}
               <span className="text-xs text-gray-400">{submittedCount} / {referrers.length} submitted</span>
             </div>
           </div>
@@ -92,17 +111,21 @@ export default function ReferralDetail() {
         {/* Referrer list */}
         <div className="flex justify-between items-center mb-3">
           <h2 className="font-semibold text-gray-700">Referrers</h2>
-          <button
-            onClick={() => setAddOpen(o => !o)}
-            className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
-          >
-            + Add Referrer
-          </button>
+          {!request?.archived_at && (
+            <button
+              onClick={() => setAddOpen(o => !o)}
+              className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+            >
+              + Add Referrer
+            </button>
+          )}
         </div>
 
         {/* Add referrer inline form */}
         {addOpen && (
-          <form onSubmit={addReferrer} className="bg-indigo-50 border border-indigo-200 rounded-xl px-5 py-4 mb-3 flex gap-3 items-end">
+          <form onSubmit={addReferrer} className="bg-indigo-50 border border-indigo-200 rounded-xl px-5 py-4 mb-3 space-y-2">
+            {addError && <p className="text-xs text-red-500">{addError}</p>}
+          <div className="flex gap-3 items-end">
             <div className="flex-1">
               <label className="block text-xs text-gray-500 mb-1">Name</label>
               <input
@@ -131,9 +154,10 @@ export default function ReferralDetail() {
             >
               {adding ? 'Sending…' : 'Send Invite'}
             </button>
-            <button type="button" onClick={() => setAddOpen(false)} className="text-gray-400 hover:text-gray-600 text-sm px-2">
+            <button type="button" onClick={() => { setAddOpen(false); setAddError(''); }} className="text-gray-400 hover:text-gray-600 text-sm px-2">
               Cancel
             </button>
+          </div>
           </form>
         )}
 

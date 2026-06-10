@@ -13,6 +13,7 @@ import PublicReport from './pages/PublicReport';
 import ReferrerForm from './pages/ReferrerForm';
 import EmployerDashboard from './pages/EmployerDashboard';
 import SampleReport from './pages/SampleReport';
+import Settings from './pages/Settings';
 
 function PrivateRoute({ children, role }) {
   const { user } = useAuth();
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/references/new" element={<PrivateRoute><NewReferral /></PrivateRoute>} />
         <Route path="/references/:id" element={<PrivateRoute><ReferralDetail /></PrivateRoute>} />
         <Route path="/reports/:id" element={<PrivateRoute><Report /></PrivateRoute>} />
+        <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
 
         {/* Employer */}
         <Route path="/employer/dashboard" element={<PrivateRoute role="employer"><EmployerDashboard /></PrivateRoute>} />

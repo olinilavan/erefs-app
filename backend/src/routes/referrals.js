@@ -6,9 +6,31 @@ const { v4: uuidv4 } = require('uuid');
 
 const router = express.Router();
 
+const PERSONAL_DOMAINS = new Set([
+  'gmail.com','yahoo.com','hotmail.com','outlook.com','live.com',
+  'icloud.com','aol.com','mail.com','protonmail.com','ymail.com',
+  'msn.com','me.com','mac.com','googlemail.com','yahoo.co.uk',
+]);
+
+function isPersonalEmail(email) {
+  const domain = email.split('@')[1]?.toLowerCase();
+  return domain ? PERSONAL_DOMAINS.has(domain) : false;
+}
+
+async function checkWorkEmailPolicy(userId, emails) {
+  const result = await db.query(`SELECT require_work_email FROM users WHERE id = $1`, [userId]);
+  if (!result.rows[0]?.require_work_email) return null;
+  const personal = emails.filter(isPersonalEmail);
+  return personal.length > 0
+    ? `Work email required. Personal email not allowed: ${personal.join(', ')}`
+    : null;
+}
+
 // POST /api/referrals — create a new referral request + send emails to referrers
 router.post('/', auth, async (req, res) => {
   const { targetRole, referrers, candidateName, candidateEmail, jobId } = req.body;
+  const policyError = await checkWorkEmailPolicy(req.user.id, (referrers || []).map(r => r.email));
+  if (policyError) return res.status(400).json({ error: policyError });
   const client = await db.connect();
   try {
     await client.query('BEGIN');
@@ -83,6 +105,9 @@ router.post('/:id/referrers', auth, async (req, res) => {
     [req.params.id, req.user.id]
   );
   if (!ownerCheck.rows.length) return res.status(404).json({ error: 'Not found' });
+
+  const policyError = await checkWorkEmailPolicy(req.user.id, [email]);
+  if (policyError) return res.status(400).json({ error: policyError });
 
   const result = await db.query(
     `INSERT INTO referrers (referral_request_id, name, email) VALUES ($1, $2, $3) RETURNING *`,

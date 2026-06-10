@@ -1,13 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api';
+import { isPersonalEmail } from '../utils/emailValidation';
 
 export default function NewReferral() {
+  const [candidateName, setCandidateName] = useState('');
+  const [candidateEmail, setCandidateEmail] = useState('');
   const [targetRole, setTargetRole] = useState('');
   const [referrers, setReferrers] = useState([{ name: '', email: '' }]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [requireWorkEmail, setRequireWorkEmail] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    api.get('/api/settings').then(r => setRequireWorkEmail(r.data.require_work_email));
+  }, []);
 
   const addReferrer = () => setReferrers([...referrers, { name: '', email: '' }]);
   const updateReferrer = (i, field, value) => {
@@ -19,10 +27,17 @@ export default function NewReferral() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    if (requireWorkEmail) {
+      const personal = referrers.filter(r => r.email && isPersonalEmail(r.email));
+      if (personal.length > 0) {
+        setError(`Work email required. Please use a corporate email address for: ${personal.map(r => r.name || r.email).join(', ')}`);
+        return;
+      }
+    }
+    setLoading(true);
     try {
-      const res = await api.post('/api/referrals', { targetRole, referrers });
+      const res = await api.post('/api/referrals', { candidateName, candidateEmail, targetRole, referrers });
       navigate(`/references/${res.data.referralRequest.id}`);
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong');
@@ -43,11 +58,30 @@ export default function NewReferral() {
         {error && <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 mb-6 text-sm">{error}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Target Role (optional)</label>
-            <input type="text" placeholder="e.g. Senior Product Manager at Stripe"
-              value={targetRole} onChange={e => setTargetRole(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+
+          {/* Candidate details */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+            <h2 className="text-sm font-semibold text-gray-700">Candidate Details</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Candidate Name <span className="text-red-500">*</span></label>
+                <input type="text" placeholder="e.g. Alex Chen" required
+                  value={candidateName} onChange={e => setCandidateName(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Candidate Email <span className="text-gray-400 font-normal">(optional)</span></label>
+                <input type="email" placeholder="alex@example.com"
+                  value={candidateEmail} onChange={e => setCandidateEmail(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Target Role <span className="text-gray-400 font-normal">(optional)</span></label>
+              <input type="text" placeholder="e.g. Senior Product Manager at Stripe"
+                value={targetRole} onChange={e => setTargetRole(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
           </div>
 
           <div>
@@ -59,20 +93,28 @@ export default function NewReferral() {
               )}
             </div>
             <div className="space-y-3">
-              {referrers.map((r, i) => (
-                <div key={i} className="flex gap-3">
-                  <input type="text" placeholder="Name" required value={r.name}
-                    onChange={e => updateReferrer(i, 'name', e.target.value)}
-                    className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                  <input type="email" placeholder="Email" required value={r.email}
-                    onChange={e => updateReferrer(i, 'email', e.target.value)}
-                    className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                  {referrers.length > 1 && (
-                    <button type="button" onClick={() => removeReferrer(i)}
-                      className="text-gray-400 hover:text-red-500 px-2">✕</button>
-                  )}
-                </div>
-              ))}
+              {referrers.map((r, i) => {
+                const emailInvalid = requireWorkEmail && r.email && isPersonalEmail(r.email);
+                return (
+                  <div key={i} className="space-y-1">
+                    <div className="flex gap-3">
+                      <input type="text" placeholder="Name" required value={r.name}
+                        onChange={e => updateReferrer(i, 'name', e.target.value)}
+                        className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="email" placeholder="Work email" required value={r.email}
+                        onChange={e => updateReferrer(i, 'email', e.target.value)}
+                        className={`flex-1 border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 ${emailInvalid ? 'border-red-400 focus:ring-red-300' : 'border-gray-300 focus:ring-indigo-500'}`} />
+                      {referrers.length > 1 && (
+                        <button type="button" onClick={() => removeReferrer(i)}
+                          className="text-gray-400 hover:text-red-500 px-2">✕</button>
+                      )}
+                    </div>
+                    {emailInvalid && (
+                      <p className="text-xs text-red-500 pl-1">Personal email not allowed — please use a work email address.</p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 

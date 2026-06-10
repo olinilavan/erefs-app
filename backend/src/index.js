@@ -7,6 +7,7 @@ const referralRoutes = require('./routes/referrals');
 const referrerRoutes = require('./routes/referrers');
 const reportRoutes = require('./routes/reports');
 const employerRoutes = require('./routes/employer');
+const settingsRoutes = require('./routes/settings');
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use('/api/referrals', referralRoutes);
 app.use('/api/referrers', referrerRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/employer', employerRoutes);
+app.use('/api/settings', settingsRoutes);
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
