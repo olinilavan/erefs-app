@@ -12,8 +12,11 @@ CREATE TABLE users (
   headline VARCHAR(255),
   require_work_email BOOLEAN DEFAULT false,
   reminder_days INT DEFAULT 7,
+  wants_custom_questions BOOLEAN DEFAULT false,
   subscription_plan VARCHAR(20) DEFAULT 'beta',
   subscription_started_at TIMESTAMP DEFAULT NOW(),
+  terms_accepted_at TIMESTAMP,
+  is_admin BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT NOW()
 );
 

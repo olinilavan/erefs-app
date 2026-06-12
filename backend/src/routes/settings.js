@@ -8,8 +8,8 @@ const router = express.Router();
 router.get('/', auth, async (req, res) => {
   const result = await db.query(
     `SELECT id, email, name, role, company, headline,
-            require_work_email, reminder_days,
-            subscription_plan, subscription_started_at, created_at
+            require_work_email, reminder_days, wants_custom_questions,
+            subscription_plan, subscription_started_at, terms_accepted_at, created_at
      FROM users WHERE id = $1`,
     [req.user.id]
   );
@@ -19,19 +19,20 @@ router.get('/', auth, async (req, res) => {
 
 // PUT /api/settings
 router.put('/', auth, async (req, res) => {
-  const { name, company, headline, require_work_email, reminder_days } = req.body;
+  const { name, company, headline, require_work_email, reminder_days, wants_custom_questions } = req.body;
   const result = await db.query(
     `UPDATE users
      SET name = COALESCE($1, name),
          company = COALESCE($2, company),
          headline = COALESCE($3, headline),
          require_work_email = COALESCE($4, require_work_email),
-         reminder_days = COALESCE($5, reminder_days)
-     WHERE id = $6
+         reminder_days = COALESCE($5, reminder_days),
+         wants_custom_questions = COALESCE($6, wants_custom_questions)
+     WHERE id = $7
      RETURNING id, email, name, role, company, headline,
-               require_work_email, reminder_days,
-               subscription_plan, subscription_started_at`,
-    [name, company, headline, require_work_email, reminder_days, req.user.id]
+               require_work_email, reminder_days, wants_custom_questions,
+               subscription_plan, subscription_started_at, terms_accepted_at`,
+    [name, company, headline, require_work_email, reminder_days, wants_custom_questions, req.user.id]
   );
   res.json(result.rows[0]);
 });

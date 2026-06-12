@@ -14,10 +14,13 @@ import ReferrerForm from './pages/ReferrerForm';
 import EmployerDashboard from './pages/EmployerDashboard';
 import SampleReport from './pages/SampleReport';
 import Settings from './pages/Settings';
+import Terms from './pages/Terms';
+import AdminDashboard from './pages/AdminDashboard';
 
-function PrivateRoute({ children, role }) {
+function PrivateRoute({ children, role, adminOnly }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" />;
+  if (adminOnly && !user.is_admin) return <Navigate to="/dashboard" />;
   if (role && user.role !== role) return <Navigate to="/dashboard" />;
   return children;
 }
@@ -33,6 +36,7 @@ export default function App() {
         <Route path="/ref/:token" element={<ReferrerForm />} />
         <Route path="/report/share/:shareToken" element={<PublicReport />} />
         <Route path="/sample-report" element={<SampleReport />} />
+        <Route path="/terms" element={<Terms />} />
 
         {/* Job Seeker */}
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
@@ -43,6 +47,9 @@ export default function App() {
 
         {/* Employer */}
         <Route path="/employer/dashboard" element={<PrivateRoute role="employer"><EmployerDashboard /></PrivateRoute>} />
+
+        {/* Admin */}
+        <Route path="/admin" element={<PrivateRoute adminOnly><AdminDashboard /></PrivateRoute>} />
       </Routes>
     </AuthProvider>
   );

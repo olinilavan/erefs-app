@@ -4,6 +4,21 @@ import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import AccountDropdown from '../components/AccountDropdown';
 
+function Toggle({ enabled, onChange, label, description }) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <div className="text-sm font-medium text-gray-700">{label}</div>
+        {description && <div className="text-xs text-gray-400 mt-0.5">{description}</div>}
+      </div>
+      <button type="button" onClick={() => onChange(!enabled)}
+        className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full transition-colors duration-200 focus:outline-none ${enabled ? 'bg-indigo-600' : 'bg-gray-200'}`}>
+        <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 mt-0.5 ${enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+      </button>
+    </div>
+  );
+}
+
 export default function Settings() {
   const { user } = useAuth();
   const [form, setForm] = useState(null);
@@ -23,6 +38,7 @@ export default function Settings() {
       headline: form.headline,
       require_work_email: form.require_work_email,
       reminder_days: form.reminder_days,
+      wants_custom_questions: form.wants_custom_questions,
     });
     setSaving(false);
     setSaved(true);
@@ -86,18 +102,25 @@ export default function Settings() {
             <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
               <h2 className="font-semibold text-gray-800">Reference Preferences</h2>
 
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="text-sm font-medium text-gray-700">Work email only</div>
-                  <div className="text-xs text-gray-400 mt-0.5">Only accept responses from corporate email addresses (no Gmail, Yahoo, etc.)</div>
+              <Toggle
+                enabled={form.require_work_email}
+                onChange={v => setForm({ ...form, require_work_email: v })}
+                label="Work email only"
+                description="Only accept responses from corporate email addresses (no Gmail, Yahoo, etc.)"
+              />
+
+              <Toggle
+                enabled={form.wants_custom_questions}
+                onChange={v => setForm({ ...form, wants_custom_questions: v })}
+                label="Custom question sets"
+                description="Use your own domain-specific questions instead of the standard set. (Available in next phase)"
+              />
+
+              {form.wants_custom_questions && (
+                <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-3 text-sm text-indigo-700">
+                  Your interest has been noted. Custom question sets will be available in an upcoming release.
                 </div>
-                <button type="button"
-                  onClick={() => setForm({ ...form, require_work_email: !form.require_work_email })}
-                  className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full transition-colors duration-200 focus:outline-none ${form.require_work_email ? 'bg-indigo-600' : 'bg-gray-200'}`}
-                >
-                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 mt-0.5 ${form.require_work_email ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                </button>
-              </div>
+              )}
 
               <div>
                 <div className="text-sm font-medium text-gray-700 mb-1">Remind me if referrer hasn't responded in</div>
@@ -143,6 +166,25 @@ export default function Settings() {
                 <p className="text-xs text-gray-400 mt-1">Payment integration available after beta period</p>
               </div>
               <span className="text-xs bg-gray-100 text-gray-500 px-3 py-1 rounded-full">Coming Soon</span>
+            </div>
+          </div>
+
+          {/* Legal */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-6">
+            <h2 className="font-semibold text-gray-800 mb-3">Legal</h2>
+            <div className="flex justify-between items-center">
+              <div>
+                <div className="text-sm text-gray-700">Terms & Conditions</div>
+                {form.terms_accepted_at && (
+                  <div className="text-xs text-gray-400 mt-0.5">
+                    Accepted on {new Date(form.terms_accepted_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                  </div>
+                )}
+              </div>
+              <Link to="/terms" target="_blank"
+                className="text-sm text-indigo-600 hover:underline font-medium">
+                View →
+              </Link>
             </div>
           </div>
 

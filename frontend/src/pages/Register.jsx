@@ -9,6 +9,7 @@ export default function Register() {
     role: params.get('role') || 'jobseeker',
     company: '', headline: '',
   });
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState('');
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -16,8 +17,12 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!termsAccepted) {
+      setError('You must accept the Terms & Conditions to create an account.');
+      return;
+    }
     try {
-      const user = await register(form);
+      const user = await register({ ...form, termsAccepted: true });
       navigate(user.role === 'employer' ? '/employer/dashboard' : '/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed');
@@ -63,7 +68,20 @@ export default function Register() {
               onChange={e => setForm({ ...form, company: e.target.value })}
               className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           )}
-          <button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" checked={termsAccepted}
+              onChange={e => setTermsAccepted(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+            <span className="text-sm text-gray-600">
+              I agree to the{' '}
+              <Link to="/terms" target="_blank" className="text-indigo-600 hover:underline font-medium">
+                Terms & Conditions
+              </Link>
+            </span>
+          </label>
+          <button type="submit"
+            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition disabled:opacity-50"
+            disabled={!termsAccepted}>
             Create Account
           </button>
         </form>
