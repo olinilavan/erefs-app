@@ -95,7 +95,7 @@ export default function AdminDashboard() {
 
       <nav className="bg-indigo-900 text-white px-8 py-4 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <span className="text-xl font-bold">eRefs<span className="text-indigo-300">.ai</span></span>
+          <Link to="/admin" className="text-xl font-bold">eRefs<span className="text-indigo-300">.ai</span></Link>
           <span className="text-xs bg-indigo-700 px-2 py-0.5 rounded-full">Admin</span>
         </div>
         <button onClick={logout} className="text-sm text-indigo-300 hover:text-white transition">Logout</button>
