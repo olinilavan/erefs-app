@@ -13,12 +13,12 @@ router.post('/register', async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
     const result = await db.query(
       `INSERT INTO users (email, password_hash, name, role, company, headline, terms_accepted_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id, email, name, role`,
+       VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id, email, name, role, company, is_admin`,
       [email, hash, name, role, company || null, headline || null]
     );
     const user = result.rows[0];
     const token = jwt.sign({ id: user.id, role: user.role, name: user.name, is_admin: user.is_admin || false }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user });
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, company: user.company || null, is_admin: user.is_admin || false } });
   } catch (err) {
     if (err.code === '23505') return res.status(400).json({ error: 'Email already in use' });
     res.status(500).json({ error: err.message });
@@ -34,8 +34,11 @@ router.post('/login', async (req, res) => {
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+    if (user.is_active === false) {
+      return res.status(403).json({ error: 'Your account has been deactivated. Please contact support.' });
+    }
     const token = jwt.sign({ id: user.id, role: user.role, name: user.name, is_admin: user.is_admin || false }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, is_admin: user.is_admin || false } });
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, company: user.company || null, is_admin: user.is_admin || false } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

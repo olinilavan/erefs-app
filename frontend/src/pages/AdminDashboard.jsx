@@ -12,6 +12,7 @@ export default function AdminDashboard() {
   const [showNewRequest, setShowNewRequest] = useState(false);
   const [form, setForm] = useState({ candidateName: '', candidateEmail: '', targetRole: '', referrers: [{ name: '', email: '' }] });
   const [search, setSearch] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
     api.get('/api/admin/stats').then(r => setStats(r.data));
@@ -23,6 +24,29 @@ export default function AdminDashboard() {
     setShowNewRequest(false);
     const res = await api.get(`/api/admin/employers/${emp.id}/candidates`);
     setPipeline(res.data);
+  }
+
+  async function deactivate(id) {
+    await api.patch(`/api/admin/employers/${id}/deactivate`);
+    const res = await api.get('/api/admin/employers');
+    setEmployers(res.data);
+    if (selected?.id === id) setSelected(s => ({ ...s, is_active: false }));
+  }
+
+  async function activate(id) {
+    await api.patch(`/api/admin/employers/${id}/activate`);
+    const res = await api.get('/api/admin/employers');
+    setEmployers(res.data);
+    if (selected?.id === id) setSelected(s => ({ ...s, is_active: true }));
+  }
+
+  async function confirmDelete() {
+    await api.delete(`/api/admin/employers/${deleteTarget}`);
+    setDeleteTarget(null);
+    setSelected(null);
+    setPipeline([]);
+    const res = await api.get('/api/admin/employers');
+    setEmployers(res.data);
   }
 
   async function handleSubmit(e) {
@@ -48,6 +72,27 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 shadow-xl max-w-sm w-full mx-4">
+            <p className="text-gray-800 font-semibold mb-1">Delete employer account?</p>
+            <p className="text-gray-500 text-sm mb-6">
+              This permanently deletes the employer account and all associated candidates, referrers, responses and reports. This cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                Cancel
+              </button>
+              <button onClick={confirmDelete}
+                className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+                Delete permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <nav className="bg-indigo-900 text-white px-8 py-4 flex justify-between items-center">
         <div className="flex items-center gap-3">
           <span className="text-xl font-bold">eRefs<span className="text-indigo-300">.ai</span></span>
@@ -91,18 +136,38 @@ export default function AdminDashboard() {
             </div>
             <div className="divide-y divide-gray-50 max-h-[600px] overflow-y-auto">
               {filtered.map(emp => (
-                <button key={emp.id} onClick={() => selectEmployer(emp)}
-                  className={`w-full text-left px-5 py-4 hover:bg-gray-50 transition ${selected?.id === emp.id ? 'bg-indigo-50 border-l-2 border-indigo-500' : ''}`}>
-                  <div className="font-medium text-sm text-gray-800">{emp.name}</div>
-                  <div className="text-xs text-gray-400 truncate">{emp.email}</div>
-                  {emp.company && <div className="text-xs text-gray-500 mt-0.5">{emp.company}</div>}
-                  <div className="flex gap-3 mt-1.5">
-                    <span className="text-xs text-gray-400">{emp.active_requests} active requests</span>
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${emp.terms_accepted_at ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>
-                      {emp.terms_accepted_at ? 'Terms accepted' : 'No terms'}
-                    </span>
+                <div key={emp.id}
+                  className={`w-full px-5 py-4 border-b border-gray-50 ${selected?.id === emp.id ? 'bg-indigo-50 border-l-2 border-indigo-500' : emp.is_active ? '' : 'bg-gray-50 opacity-60'}`}>
+                  <button onClick={() => selectEmployer(emp)} className="w-full text-left">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <div className="font-medium text-sm text-gray-800">{emp.company || emp.name}</div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${emp.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                        {emp.is_active ? 'Active' : 'Deactivated'}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-400 truncate">{emp.email}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">{emp.active_requests} active requests</div>
+                  </button>
+                  <div className="flex gap-3 mt-2">
+                    {emp.is_active ? (
+                      <button onClick={() => deactivate(emp.id)}
+                        className="text-xs text-yellow-600 hover:text-yellow-800 font-medium transition">
+                        Deactivate
+                      </button>
+                    ) : (
+                      <>
+                        <button onClick={() => activate(emp.id)}
+                          className="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition">
+                          Restore
+                        </button>
+                        <button onClick={() => setDeleteTarget(emp.id)}
+                          className="text-xs text-red-500 hover:text-red-700 font-medium transition">
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </div>
-                </button>
+                </div>
               ))}
               {filtered.length === 0 && (
                 <div className="px-5 py-8 text-center text-gray-400 text-sm">No employers found</div>
@@ -114,20 +179,32 @@ export default function AdminDashboard() {
           <div className="col-span-2 space-y-4">
             {selected ? (
               <>
-                <div className="bg-white rounded-2xl border border-gray-200 p-5 flex justify-between items-start">
+                <div className={`bg-white rounded-2xl border p-5 flex justify-between items-start ${!selected.is_active ? 'border-red-200 bg-red-50' : 'border-gray-200'}`}>
                   <div>
-                    <h2 className="font-semibold text-gray-800">{selected.name}</h2>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h2 className="font-semibold text-gray-800">{selected.company || selected.name}</h2>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${selected.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                        {selected.is_active ? 'Active' : 'Deactivated'}
+                      </span>
+                    </div>
                     <div className="text-sm text-gray-400">{selected.email}</div>
-                    {selected.company && <div className="text-sm text-gray-500">{selected.company}</div>}
+                    {selected.company && <div className="text-sm text-gray-500">{selected.name}</div>}
                     <div className="text-xs text-gray-400 mt-1">
                       Member since {new Date(selected.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                       {' · '}{selected.subscription_plan} plan
                     </div>
+                    {!selected.is_active && (
+                      <div className="text-xs text-red-500 mt-1 font-medium">
+                        This account is deactivated — employer cannot log in
+                      </div>
+                    )}
                   </div>
-                  <button onClick={() => setShowNewRequest(o => !o)}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
-                    + Place Referral
-                  </button>
+                  {selected.is_active && (
+                    <button onClick={() => setShowNewRequest(o => !o)}
+                      className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+                      + Place Referral
+                    </button>
+                  )}
                 </div>
 
                 {showNewRequest && (

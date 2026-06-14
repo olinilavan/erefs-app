@@ -13,14 +13,14 @@ function adminOnly(req, res, next) {
 router.get('/employers', auth, adminOnly, async (req, res) => {
   const result = await db.query(
     `SELECT u.id, u.name, u.email, u.company, u.subscription_plan,
-            u.terms_accepted_at, u.created_at,
+            u.terms_accepted_at, u.is_active, u.created_at,
             COUNT(DISTINCT rr.id) AS total_requests,
             COUNT(DISTINCT rr.id) FILTER (WHERE rr.archived_at IS NULL) AS active_requests
      FROM users u
      LEFT JOIN referral_requests rr ON rr.requester_id = u.id
      WHERE u.role = 'employer' AND u.is_admin = false
      GROUP BY u.id
-     ORDER BY u.created_at DESC`
+     ORDER BY u.is_active DESC, u.created_at DESC`
   );
   res.json(result.rows);
 });
@@ -67,6 +67,38 @@ router.post('/employers/:id/referrals', auth, adminOnly, async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+// PATCH /api/admin/employers/:id/deactivate
+router.patch('/employers/:id/deactivate', auth, adminOnly, async (req, res) => {
+  const result = await db.query(
+    `UPDATE users SET is_active = false
+     WHERE id = $1 AND role = 'employer' AND is_admin = false AND is_active = true RETURNING id`,
+    [req.params.id]
+  );
+  if (!result.rows.length) return res.status(404).json({ error: 'Employer not found or already deactivated' });
+  res.json({ success: true });
+});
+
+// PATCH /api/admin/employers/:id/activate
+router.patch('/employers/:id/activate', auth, adminOnly, async (req, res) => {
+  const result = await db.query(
+    `UPDATE users SET is_active = true
+     WHERE id = $1 AND role = 'employer' AND is_active = false RETURNING id`,
+    [req.params.id]
+  );
+  if (!result.rows.length) return res.status(404).json({ error: 'Employer not found or already active' });
+  res.json({ success: true });
+});
+
+// DELETE /api/admin/employers/:id — only allowed if deactivated
+router.delete('/employers/:id', auth, adminOnly, async (req, res) => {
+  const result = await db.query(
+    `DELETE FROM users WHERE id = $1 AND role = 'employer' AND is_active = false RETURNING id`,
+    [req.params.id]
+  );
+  if (!result.rows.length) return res.status(400).json({ error: 'Only deactivated employer accounts can be deleted' });
+  res.json({ success: true });
 });
 
 // GET /api/admin/stats — platform-wide numbers

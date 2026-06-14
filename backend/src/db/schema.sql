@@ -17,6 +17,7 @@ CREATE TABLE users (
   subscription_started_at TIMESTAMP DEFAULT NOW(),
   terms_accepted_at TIMESTAMP,
   is_admin BOOLEAN DEFAULT false,
+  is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT NOW()
 );
 

@@ -25,8 +25,12 @@ export default function AccountDropdown() {
           {user?.name?.charAt(0).toUpperCase()}
         </div>
         <div className="text-left hidden sm:block">
-          <div className="text-sm font-medium text-gray-700 leading-tight">{user?.name}</div>
-          {user?.company && <div className="text-xs text-gray-400 leading-tight">{user.company}</div>}
+          <div className="text-sm font-medium text-gray-700 leading-tight">
+            {user?.role === 'employer' && user?.company ? user.company : user?.name}
+          </div>
+          <div className="text-xs text-gray-400 leading-tight">
+            {user?.role === 'employer' && user?.company ? user.name : user?.email}
+          </div>
         </div>
         <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
