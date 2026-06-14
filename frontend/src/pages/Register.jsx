@@ -55,9 +55,14 @@ export default function Register() {
           <input type="email" placeholder="Email" required value={form.email}
             onChange={e => setForm({ ...form, email: e.target.value })}
             className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          <input type="password" placeholder="Password" required value={form.password}
-            onChange={e => setForm({ ...form, password: e.target.value })}
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <div>
+            <input type="password" placeholder="Password" required minLength={8} value={form.password}
+              onChange={e => setForm({ ...form, password: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            {form.password && form.password.length < 8 && (
+              <p className="text-xs text-red-500 mt-1">Password must be at least 8 characters.</p>
+            )}
+          </div>
           {form.role === 'jobseeker' && (
             <input type="text" placeholder="Professional headline (e.g. Senior Engineer)" value={form.headline}
               onChange={e => setForm({ ...form, headline: e.target.value })}

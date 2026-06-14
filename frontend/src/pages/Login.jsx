@@ -13,7 +13,9 @@ export default function Login() {
     setError('');
     try {
       const user = await login(form.email, form.password);
-      navigate(user.role === 'employer' ? '/employer/dashboard' : '/dashboard');
+      if (user.is_admin) navigate('/admin');
+      else if (user.role === 'employer') navigate('/employer/dashboard');
+      else navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed');
     }
@@ -32,9 +34,14 @@ export default function Login() {
           <input type="email" placeholder="Email" required value={form.email}
             onChange={e => setForm({ ...form, email: e.target.value })}
             className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          <input type="password" placeholder="Password" required value={form.password}
-            onChange={e => setForm({ ...form, password: e.target.value })}
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <div>
+            <input type="password" placeholder="Password" required value={form.password}
+              onChange={e => setForm({ ...form, password: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <div className="text-right mt-1">
+              <Link to="/forgot-password" className="text-sm text-indigo-600 hover:underline">Forgot password?</Link>
+            </div>
+          </div>
           <button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition">
             Log In
           </button>

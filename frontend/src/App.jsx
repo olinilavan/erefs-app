@@ -16,6 +16,8 @@ import SampleReport from './pages/SampleReport';
 import Settings from './pages/Settings';
 import Terms from './pages/Terms';
 import AdminDashboard from './pages/AdminDashboard';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 function PrivateRoute({ children, role, adminOnly }) {
   const { user } = useAuth();
@@ -33,6 +35,8 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/ref/:token" element={<ReferrerForm />} />
         <Route path="/report/share/:shareToken" element={<PublicReport />} />
         <Route path="/sample-report" element={<SampleReport />} />

@@ -63,6 +63,15 @@ CREATE TABLE responses (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE password_reset_tokens (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  token UUID DEFAULT uuid_generate_v4() UNIQUE,
+  expires_at TIMESTAMP DEFAULT NOW() + INTERVAL '30 minutes',
+  used_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE TABLE reports (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   referrer_id UUID UNIQUE REFERENCES referrers(id) ON DELETE CASCADE,

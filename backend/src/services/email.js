@@ -41,4 +41,38 @@ async function sendReferrerInvite(referrer, referralRequest, requester) {
   console.log('[email sent]', data?.id, '→', referrer.email);
 }
 
-module.exports = { sendReferrerInvite };
+async function sendPasswordReset(email, token) {
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${token}`;
+
+  console.log(`\n[Reset URL] ${resetUrl}\n`);
+
+  if (isDev) {
+    return;
+  }
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: email,
+    subject: 'Reset your eRefs.ai password',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a2e;">Reset your password</h2>
+        <p>We received a request to reset your eRefs.ai password. Click the button below to choose a new one.</p>
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${resetUrl}" style="background: #4f46e5; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+            Reset Password
+          </a>
+        </p>
+        <p style="color: #888; font-size: 12px;">This link expires in 30 minutes. If you did not request a password reset, you can safely ignore this email.</p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    console.error('[password reset email failed]', error);
+    throw new Error(error.message);
+  }
+  console.log('[password reset email sent]', data?.id, '→', email);
+}
+
+module.exports = { sendReferrerInvite, sendPasswordReset };
