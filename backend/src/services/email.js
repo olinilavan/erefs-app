@@ -3,8 +3,10 @@ const { Resend } = require('resend');
 const isDev = !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 'your_resend_api_key';
 const resend = isDev ? null : new Resend(process.env.RESEND_API_KEY);
 
+const BASE_URL = (BASE_URL || '').split(',')[0].trim();
+
 async function sendReferrerInvite(referrer, referralRequest, requester) {
-  const formUrl = `${process.env.FRONTEND_URL}/ref/${referrer.token}`;
+  const formUrl = `${BASE_URL}/ref/${referrer.token}`;
   const candidateName = referralRequest.candidate_name || requester.name;
 
   if (isDev) {
@@ -42,7 +44,7 @@ async function sendReferrerInvite(referrer, referralRequest, requester) {
 }
 
 async function sendPasswordReset(email, token) {
-  const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${token}`;
+  const resetUrl = `${BASE_URL}/reset-password/${token}`;
 
   console.log(`\n[Reset URL] ${resetUrl}\n`);
 
@@ -76,7 +78,7 @@ async function sendPasswordReset(email, token) {
 }
 
 async function sendVerificationEmail(email, token) {
-  const verifyUrl = `${process.env.FRONTEND_URL}/verify-email/${token}`;
+  const verifyUrl = `${BASE_URL}/verify-email/${token}`;
 
   console.log(`\n[Verification URL] ${verifyUrl}\n`);
 
