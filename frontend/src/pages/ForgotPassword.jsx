@@ -26,7 +26,7 @@ export default function ForgotPassword() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-md">
-        <Logo />
+        <Logo to="/" />
 
         {submitted ? (
           <div className="mt-8 text-center">

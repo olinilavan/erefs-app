@@ -18,6 +18,7 @@ import Terms from './pages/Terms';
 import AdminDashboard from './pages/AdminDashboard';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import VerifyEmail from './pages/VerifyEmail';
 
 function PrivateRoute({ children, role, adminOnly }) {
   const { user } = useAuth();
@@ -41,6 +42,7 @@ export default function App() {
         <Route path="/report/share/:shareToken" element={<PublicReport />} />
         <Route path="/sample-report" element={<SampleReport />} />
         <Route path="/terms" element={<Terms />} />
+        <Route path="/verify-email/:token" element={<VerifyEmail />} />
 
         {/* Job Seeker */}
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />

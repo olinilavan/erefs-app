@@ -1,7 +1,7 @@
 import Logo from '../components/Logo';
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Link, useSearchParams } from 'react-router-dom';
+import api from '../api';
 
 export default function Register() {
   const [params] = useSearchParams();
@@ -12,8 +12,7 @@ export default function Register() {
   });
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState('');
-  const { register } = useAuth();
-  const navigate = useNavigate();
+  const [registered, setRegistered] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,22 +22,49 @@ export default function Register() {
       return;
     }
     try {
-      const user = await register({ ...form, termsAccepted: true });
-      navigate(user.role === 'employer' ? '/employer/dashboard' : '/dashboard');
+      await api.post('/api/auth/register', { ...form, termsAccepted: true });
+      setRegistered(true);
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed');
     }
   };
 
+  if (registered) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-md text-center">
+          <Logo to="/" />
+          <div className="text-4xl mt-8 mb-4">📬</div>
+          <h2 className="text-xl font-bold mb-2">Check your inbox</h2>
+          <p className="text-gray-500 text-sm leading-relaxed mb-6">
+            We sent a verification link to <strong>{form.email}</strong>.<br />
+            Click it to activate your account. The link expires in 24 hours.
+          </p>
+          <p className="text-xs text-gray-400">
+            Didn't receive it?{' '}
+            <button onClick={async () => {
+              await api.post('/api/auth/resend-verification', { email: form.email });
+              alert('Verification email resent.');
+            }} className="text-teal-600 hover:underline font-medium">
+              Resend email
+            </button>
+          </p>
+          <Link to="/login" className="block mt-6 text-sm text-teal-600 hover:underline">
+            ← Back to login
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-md">
-        <Logo />
+        <Logo to="/" />
         <h1 className="text-2xl font-bold mt-6 mb-1">Create your account</h1>
 
         {error && <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm">{error}</div>}
 
-        {/* Role toggle */}
         <div className="flex bg-gray-100 rounded-lg p-1 mb-6 mt-4">
           {['jobseeker', 'employer'].map(r => (
             <button key={r} type="button"

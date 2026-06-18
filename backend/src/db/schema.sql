@@ -18,6 +18,7 @@ CREATE TABLE users (
   terms_accepted_at TIMESTAMP,
   is_admin BOOLEAN DEFAULT false,
   is_active BOOLEAN DEFAULT true,
+  is_verified BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -60,6 +61,14 @@ CREATE TABLE responses (
   question_number INT NOT NULL CHECK (question_number BETWEEN 1 AND 10),
   answer_text TEXT,
   rating INT CHECK (rating BETWEEN 1 AND 5),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE email_verification_tokens (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  token UUID DEFAULT uuid_generate_v4() UNIQUE,
+  expires_at TIMESTAMP DEFAULT NOW() + INTERVAL '24 hours',
   created_at TIMESTAMP DEFAULT NOW()
 );
 

@@ -75,4 +75,36 @@ async function sendPasswordReset(email, token) {
   console.log('[password reset email sent]', data?.id, '→', email);
 }
 
-module.exports = { sendReferrerInvite, sendPasswordReset };
+async function sendVerificationEmail(email, token) {
+  const verifyUrl = `${process.env.FRONTEND_URL}/verify-email/${token}`;
+
+  console.log(`\n[Verification URL] ${verifyUrl}\n`);
+
+  if (isDev) return;
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: email,
+    subject: 'Verify your VouchMetrics account',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #0f766e;">Verify your email address</h2>
+        <p>Thanks for signing up for VouchMetrics. Click the button below to verify your email and activate your account.</p>
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${verifyUrl}" style="background: #0f766e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+            Verify Email Address
+          </a>
+        </p>
+        <p style="color: #888; font-size: 12px;">This link expires in 24 hours. If you did not create an account, you can safely ignore this email.</p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    console.error('[verification email failed]', error);
+    throw new Error(error.message);
+  }
+  console.log('[verification email sent]', data?.id, '→', email);
+}
+
+module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail };

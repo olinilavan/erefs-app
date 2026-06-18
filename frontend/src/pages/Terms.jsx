@@ -5,7 +5,7 @@ export default function Terms() {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center">
-        <Logo />
+        <Logo to="/" />
       </nav>
 
       <main className="max-w-3xl mx-auto px-8 py-12">
