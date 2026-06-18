@@ -31,8 +31,12 @@ export default function Login() {
   };
 
   async function resendVerification() {
-    await api.post('/api/auth/resend-verification', { email: form.email });
-    setResent(true);
+    try {
+      await api.post('/api/auth/resend-verification', { email: form.email });
+      setResent(true);
+    } catch {
+      setError('Failed to resend verification email. Please try again.');
+    }
   }
 
   return (

@@ -42,9 +42,13 @@ export default function Register() {
           </p>
           <p className="text-xs text-gray-400">
             Didn't receive it?{' '}
-            <button onClick={async () => {
-              await api.post('/api/auth/resend-verification', { email: form.email });
-              alert('Verification email resent.');
+            <button onClick={async (e) => {
+              try {
+                await api.post('/api/auth/resend-verification', { email: form.email });
+                alert('Verification email resent.');
+              } catch {
+                alert('Failed to resend. Please try again.');
+              }
             }} className="text-teal-600 hover:underline font-medium">
               Resend email
             </button>
