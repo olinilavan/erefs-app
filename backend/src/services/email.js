@@ -3,7 +3,7 @@ const { Resend } = require('resend');
 const isDev = !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 'your_resend_api_key';
 const resend = isDev ? null : new Resend(process.env.RESEND_API_KEY);
 
-const BASE_URL = (BASE_URL || '').split(',')[0].trim();
+const BASE_URL = (process.env.FRONTEND_URL || '').split(',')[0].trim();
 
 async function sendReferrerInvite(referrer, referralRequest, requester) {
   const formUrl = `${BASE_URL}/ref/${referrer.token}`;
