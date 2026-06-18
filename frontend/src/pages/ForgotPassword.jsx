@@ -1,3 +1,4 @@
+import Logo from '../components/Logo';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
@@ -25,7 +26,7 @@ export default function ForgotPassword() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-md">
-        <Link to="/" className="text-xl font-bold text-indigo-700">eRefs<span className="text-gray-400">.ai</span></Link>
+        <Logo />
 
         {submitted ? (
           <div className="mt-8 text-center">
@@ -34,7 +35,7 @@ export default function ForgotPassword() {
             <p className="text-gray-500 text-sm leading-relaxed">
               If an account with <strong>{email}</strong> exists, you'll receive a reset link shortly. The link expires in 30 minutes.
             </p>
-            <Link to="/login" className="mt-6 inline-block text-indigo-600 text-sm font-medium hover:underline">
+            <Link to="/login" className="mt-6 inline-block text-teal-600 text-sm font-medium hover:underline">
               ← Back to login
             </Link>
           </div>
@@ -49,16 +50,16 @@ export default function ForgotPassword() {
               <input
                 type="email" required placeholder="your@email.com"
                 value={email} onChange={e => setEmail(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
               <button type="submit" disabled={loading}
-                className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition disabled:opacity-50">
+                className="w-full bg-teal-600 text-white py-3 rounded-lg font-semibold hover:bg-teal-700 transition disabled:opacity-50">
                 {loading ? 'Sending…' : 'Send reset link'}
               </button>
             </form>
 
             <p className="mt-4 text-center text-sm text-gray-500">
-              Remember it? <Link to="/login" className="text-indigo-600 font-medium hover:underline">Log in</Link>
+              Remember it? <Link to="/login" className="text-teal-600 font-medium hover:underline">Log in</Link>
             </p>
           </>
         )}

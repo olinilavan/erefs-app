@@ -48,7 +48,7 @@ export default function NewReferral() {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200 px-8 py-4">
-        <Link to="/dashboard" className="text-xl font-bold text-indigo-700">← Dashboard</Link>
+        <Link to="/dashboard" className="text-xl font-bold text-teal-700">← Dashboard</Link>
       </nav>
 
       <main className="max-w-2xl mx-auto px-8 py-10">
@@ -67,20 +67,20 @@ export default function NewReferral() {
                 <label className="block text-sm text-gray-600 mb-1">Candidate Name <span className="text-red-500">*</span></label>
                 <input type="text" placeholder="e.g. Alex Chen" required
                   value={candidateName} onChange={e => setCandidateName(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Candidate Email <span className="text-gray-400 font-normal">(optional)</span></label>
                 <input type="email" placeholder="alex@example.com"
                   value={candidateEmail} onChange={e => setCandidateEmail(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
               </div>
             </div>
             <div>
               <label className="block text-sm text-gray-600 mb-1">Target Role <span className="text-gray-400 font-normal">(optional)</span></label>
               <input type="text" placeholder="e.g. Senior Product Manager at Stripe"
                 value={targetRole} onChange={e => setTargetRole(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
             </div>
           </div>
 
@@ -89,7 +89,7 @@ export default function NewReferral() {
               <label className="block text-sm font-medium text-gray-700">Referrers</label>
               {referrers.length < 5 && (
                 <button type="button" onClick={addReferrer}
-                  className="text-sm text-indigo-600 hover:text-indigo-800">+ Add another</button>
+                  className="text-sm text-teal-600 hover:text-teal-800">+ Add another</button>
               )}
             </div>
             <div className="space-y-3">
@@ -100,10 +100,10 @@ export default function NewReferral() {
                     <div className="flex gap-3">
                       <input type="text" placeholder="Name" required value={r.name}
                         onChange={e => updateReferrer(i, 'name', e.target.value)}
-                        className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                        className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
                       <input type="email" placeholder="Work email" required value={r.email}
                         onChange={e => updateReferrer(i, 'email', e.target.value)}
-                        className={`flex-1 border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 ${emailInvalid ? 'border-red-400 focus:ring-red-300' : 'border-gray-300 focus:ring-indigo-500'}`} />
+                        className={`flex-1 border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 ${emailInvalid ? 'border-red-400 focus:ring-red-300' : 'border-gray-300 focus:ring-teal-500'}`} />
                       {referrers.length > 1 && (
                         <button type="button" onClick={() => removeReferrer(i)}
                           className="text-gray-400 hover:text-red-500 px-2">✕</button>
@@ -119,7 +119,7 @@ export default function NewReferral() {
           </div>
 
           <button type="submit" disabled={loading}
-            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition disabled:opacity-50">
+            className="w-full bg-teal-600 text-white py-3 rounded-lg font-semibold hover:bg-teal-700 transition disabled:opacity-50">
             {loading ? 'Sending invites...' : 'Send Referral Invites'}
           </button>
         </form>

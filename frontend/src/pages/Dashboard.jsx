@@ -1,3 +1,4 @@
+import Logo from '../components/Logo';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
@@ -17,7 +18,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center">
-        <Link to="/dashboard" className="text-xl font-bold text-indigo-700">eRefs<span className="text-gray-400">.ai</span></Link>
+        <Logo to="/dashboard" />
         <AccountDropdown />
       </nav>
 
@@ -28,7 +29,7 @@ export default function Dashboard() {
             <p className="text-gray-500 text-sm mt-1">Track and manage your referral requests</p>
           </div>
           <Link to="/references/new"
-            className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-indigo-700 transition">
+            className="bg-teal-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-teal-700 transition">
             + New Request
           </Link>
         </div>

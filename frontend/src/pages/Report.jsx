@@ -27,9 +27,9 @@ export default function Report() {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center">
-        <Link to="/dashboard" className="text-xl font-bold text-indigo-700">← Dashboard</Link>
+        <Link to="/dashboard" className="text-xl font-bold text-teal-700">← Dashboard</Link>
         <button onClick={() => navigator.clipboard.writeText(shareUrl)}
-          className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
+          className="text-sm bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition">
           📋 Copy Share Link
         </button>
       </nav>
@@ -41,13 +41,13 @@ export default function Report() {
               <h1 className="text-2xl font-bold mb-2">Reference Report</h1>
               <p className="text-gray-500">{new Date(report.created_at).toLocaleDateString()}</p>
             </div>
-            <div className="text-center bg-indigo-50 rounded-xl px-6 py-3">
-              <div className="text-3xl font-bold text-indigo-700">{data.confidenceScore}%</div>
+            <div className="text-center bg-teal-50 rounded-xl px-6 py-3">
+              <div className="text-3xl font-bold text-teal-700">{data.confidenceScore}%</div>
               <div className="text-xs text-gray-500 mt-1">Confidence Score</div>
             </div>
           </div>
 
-          <div className="mt-6 bg-indigo-50 rounded-xl p-5">
+          <div className="mt-6 bg-teal-50 rounded-xl p-5">
             <h2 className="font-semibold text-gray-800 mb-2">Executive Summary</h2>
             <p className="text-gray-700 leading-relaxed">{data.executiveSummary}</p>
           </div>
@@ -118,7 +118,7 @@ export default function Report() {
             <h2 className="font-semibold text-gray-800 mb-4">💬 Notable Quotes</h2>
             <div className="space-y-4">
               {data.notableQuotes.map((q, i) => (
-                <blockquote key={i} className="border-l-4 border-indigo-300 pl-4 text-gray-600 italic">"{q}"</blockquote>
+                <blockquote key={i} className="border-l-4 border-teal-300 pl-4 text-gray-600 italic">"{q}"</blockquote>
               ))}
             </div>
           </div>

@@ -93,12 +93,12 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <nav className="bg-indigo-900 text-white px-8 py-4 flex justify-between items-center">
+      <nav className="bg-teal-900 text-white px-8 py-4 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <Link to="/admin" className="text-xl font-bold">eRefs<span className="text-indigo-300">.ai</span></Link>
-          <span className="text-xs bg-indigo-700 px-2 py-0.5 rounded-full">Admin</span>
+          <Link to="/admin" className="text-xl font-bold tracking-tight">Vouch<span className="font-normal">Metrics</span></Link>
+          <span className="text-xs bg-teal-700 px-2 py-0.5 rounded-full">Admin</span>
         </div>
-        <button onClick={logout} className="text-sm text-indigo-300 hover:text-white transition">Logout</button>
+        <button onClick={logout} className="text-sm text-teal-300 hover:text-white transition">Logout</button>
       </nav>
 
       <main className="max-w-7xl mx-auto px-8 py-8">
@@ -114,7 +114,7 @@ export default function AdminDashboard() {
               { label: 'Reports Generated', value: stats.total_reports },
             ].map(s => (
               <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-                <div className="text-2xl font-bold text-indigo-700">{s.value}</div>
+                <div className="text-2xl font-bold text-teal-700">{s.value}</div>
                 <div className="text-xs text-gray-500 mt-1">{s.label}</div>
               </div>
             ))}
@@ -131,13 +131,13 @@ export default function AdminDashboard() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search by name, email, company…"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
               />
             </div>
             <div className="divide-y divide-gray-50 max-h-[600px] overflow-y-auto">
               {filtered.map(emp => (
                 <div key={emp.id}
-                  className={`w-full px-5 py-4 border-b border-gray-50 ${selected?.id === emp.id ? 'bg-indigo-50 border-l-2 border-indigo-500' : emp.is_active ? '' : 'bg-gray-50 opacity-60'}`}>
+                  className={`w-full px-5 py-4 border-b border-gray-50 ${selected?.id === emp.id ? 'bg-teal-50 border-l-2 border-teal-500' : emp.is_active ? '' : 'bg-gray-50 opacity-60'}`}>
                   <button onClick={() => selectEmployer(emp)} className="w-full text-left">
                     <div className="flex items-center justify-between mb-0.5">
                       <div className="font-medium text-sm text-gray-800">{emp.company || emp.name}</div>
@@ -157,7 +157,7 @@ export default function AdminDashboard() {
                     ) : (
                       <>
                         <button onClick={() => activate(emp.id)}
-                          className="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition">
+                          className="text-xs text-teal-600 hover:text-teal-800 font-medium transition">
                           Restore
                         </button>
                         <button onClick={() => setDeleteTarget(emp.id)}
@@ -201,40 +201,40 @@ export default function AdminDashboard() {
                   </div>
                   {selected.is_active && (
                     <button onClick={() => setShowNewRequest(o => !o)}
-                      className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+                      className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition">
                       + Place Referral
                     </button>
                   )}
                 </div>
 
                 {showNewRequest && (
-                  <div className="bg-white rounded-2xl border border-indigo-200 p-6">
+                  <div className="bg-white rounded-2xl border border-teal-200 p-6">
                     <h3 className="font-semibold mb-4 text-gray-800">New Referral on behalf of {selected.name}</h3>
                     <form onSubmit={handleSubmit} className="space-y-3">
                       <div className="grid grid-cols-2 gap-3">
                         <input type="text" placeholder="Candidate name" required value={form.candidateName}
                           onChange={e => setForm({ ...form, candidateName: e.target.value })}
-                          className="border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                          className="border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
                         <input type="email" placeholder="Candidate email" value={form.candidateEmail}
                           onChange={e => setForm({ ...form, candidateEmail: e.target.value })}
-                          className="border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                          className="border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
                       </div>
                       <input type="text" placeholder="Target role" value={form.targetRole}
                         onChange={e => setForm({ ...form, targetRole: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
                       <div>
                         <div className="flex justify-between items-center mb-2">
                           <span className="text-sm font-medium text-gray-700">Referrers</span>
-                          <button type="button" onClick={addReferrer} className="text-sm text-indigo-600">+ Add</button>
+                          <button type="button" onClick={addReferrer} className="text-sm text-teal-600">+ Add</button>
                         </div>
                         {form.referrers.map((r, i) => (
                           <div key={i} className="flex gap-2 mb-2">
                             <input type="text" placeholder="Name" required value={r.name}
                               onChange={e => updateReferrer(i, 'name', e.target.value)}
-                              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
                             <input type="email" placeholder="Email" required value={r.email}
                               onChange={e => updateReferrer(i, 'email', e.target.value)}
-                              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
                             {form.referrers.length > 1 && (
                               <button type="button" onClick={() => removeReferrer(i)}
                                 className="text-gray-400 hover:text-red-500 px-2">✕</button>
@@ -243,7 +243,7 @@ export default function AdminDashboard() {
                         ))}
                       </div>
                       <div className="flex gap-3">
-                        <button type="submit" className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+                        <button type="submit" className="bg-teal-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition">
                           Submit
                         </button>
                         <button type="button" onClick={() => setShowNewRequest(false)}
@@ -280,7 +280,7 @@ export default function AdminDashboard() {
                           </td>
                           <td className="px-5 py-3">
                             <Link to={`/references/${c.id}`}
-                              className="text-xs text-indigo-600 hover:underline">View</Link>
+                              className="text-xs text-teal-600 hover:underline">View</Link>
                           </td>
                         </tr>
                       ))}

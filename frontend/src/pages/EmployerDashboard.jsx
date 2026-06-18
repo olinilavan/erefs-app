@@ -1,3 +1,4 @@
+import Logo from '../components/Logo';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
@@ -95,7 +96,7 @@ export default function EmployerDashboard() {
       )}
 
       <nav className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center">
-        <Link to="/employer/dashboard" className="text-xl font-bold text-indigo-700">eRefs<span className="text-gray-400">.ai</span></Link>
+        <Logo to="/employer/dashboard" />
         <AccountDropdown />
       </nav>
 
@@ -107,7 +108,7 @@ export default function EmployerDashboard() {
           </div>
           {tab === 'active' && (
             <button onClick={() => setShowNewRequest(true)}
-              className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-indigo-700 transition">
+              className="bg-teal-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-teal-700 transition">
               + Request Reference
             </button>
           )}
@@ -121,27 +122,27 @@ export default function EmployerDashboard() {
               <div className="grid md:grid-cols-2 gap-4">
                 <input type="text" placeholder="Candidate name" required value={form.candidateName}
                   onChange={e => setForm({ ...form, candidateName: e.target.value })}
-                  className="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  className="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
                 <input type="email" placeholder="Candidate email" value={form.candidateEmail}
                   onChange={e => setForm({ ...form, candidateEmail: e.target.value })}
-                  className="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  className="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
               </div>
               <input type="text" placeholder="Role (e.g. Senior Engineer)" value={form.targetRole}
                 onChange={e => setForm({ ...form, targetRole: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium text-gray-700">Referrers</span>
-                  <button type="button" onClick={addReferrer} className="text-sm text-indigo-600">+ Add</button>
+                  <button type="button" onClick={addReferrer} className="text-sm text-teal-600">+ Add</button>
                 </div>
                 {form.referrers.map((r, i) => (
                   <div key={i} className="flex gap-3 mb-2">
                     <input type="text" placeholder="Referrer name" required value={r.name}
                       onChange={e => updateReferrer(i, 'name', e.target.value)}
-                      className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
                     <input type="email" placeholder="Referrer email" required value={r.email}
                       onChange={e => updateReferrer(i, 'email', e.target.value)}
-                      className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
                     {form.referrers.length > 1 && (
                       <button type="button" onClick={() => removeReferrer(i)}
                         className="text-gray-400 hover:text-red-500 px-2 transition">✕</button>
@@ -151,7 +152,7 @@ export default function EmployerDashboard() {
               </div>
               <div className="flex gap-3">
                 <button type="submit"
-                  className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700 transition">
+                  className="bg-teal-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-teal-700 transition">
                   Send Invites
                 </button>
                 <button type="button" onClick={() => setShowNewRequest(false)}
@@ -200,7 +201,7 @@ export default function EmployerDashboard() {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <Link to={`/references/${c.id}`}
-                        className="text-sm text-indigo-600 hover:underline font-medium">
+                        className="text-sm text-teal-600 hover:underline font-medium">
                         Details
                       </Link>
                       {tab === 'active' && (
@@ -212,7 +213,7 @@ export default function EmployerDashboard() {
                       {tab === 'archived' && (
                         <>
                           <button onClick={() => unarchive(c.id)}
-                            className="text-xs text-gray-400 hover:text-indigo-600 transition">
+                            className="text-xs text-gray-400 hover:text-teal-600 transition">
                             Restore
                           </button>
                           <button onClick={() => setDeleteTarget(c.id)}

@@ -1,3 +1,4 @@
+import Logo from '../components/Logo';
 import { Link } from 'react-router-dom';
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts';
 import SAMPLE from '../sampleReportData';
@@ -16,10 +17,10 @@ export default function SampleReport() {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center">
-        <Link to="/" className="text-xl font-bold text-indigo-700">eRefs<span className="text-gray-400">.ai</span></Link>
+        <Logo />
         <div className="flex items-center gap-4">
-          <span className="text-sm text-indigo-600 font-medium bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">Sample Report</span>
-          <Link to="/register" className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition font-medium">
+          <span className="text-sm text-teal-600 font-medium bg-teal-50 px-3 py-1 rounded-full border border-teal-100">Sample Report</span>
+          <Link to="/register" className="text-sm bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition font-medium">
             Get Started Free →
           </Link>
         </div>
@@ -31,18 +32,18 @@ export default function SampleReport() {
         <div className="bg-white rounded-2xl border border-gray-200 p-8">
           <div className="flex justify-between items-start">
             <div>
-              <div className="text-xs font-medium text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100 inline-block mb-3">
+              <div className="text-xs font-medium text-teal-600 bg-teal-50 px-3 py-1 rounded-full border border-teal-100 inline-block mb-3">
                 Sample Reference Report
               </div>
               <h1 className="text-2xl font-bold mb-1">{SAMPLE.candidate_name}</h1>
               <p className="text-gray-500 text-sm">{SAMPLE.target_role} · Reference by {SAMPLE.referrer_name}</p>
             </div>
-            <div className="text-center bg-indigo-50 rounded-xl px-6 py-3 border border-indigo-100">
-              <div className="text-3xl font-bold text-indigo-700">{data.confidenceScore}%</div>
+            <div className="text-center bg-teal-50 rounded-xl px-6 py-3 border border-teal-100">
+              <div className="text-3xl font-bold text-teal-700">{data.confidenceScore}%</div>
               <div className="text-xs text-gray-500 mt-1">Confidence Score</div>
             </div>
           </div>
-          <div className="mt-6 bg-indigo-50 rounded-xl p-5 border border-indigo-100">
+          <div className="mt-6 bg-teal-50 rounded-xl p-5 border border-teal-100">
             <h2 className="font-semibold text-gray-800 mb-2">Executive Summary</h2>
             <p className="text-gray-700 leading-relaxed">{data.executiveSummary}</p>
           </div>
@@ -112,17 +113,17 @@ export default function SampleReport() {
           <h2 className="font-semibold text-gray-800 mb-4">💬 Notable Quotes</h2>
           <div className="space-y-4">
             {data.notableQuotes.map((q, i) => (
-              <blockquote key={i} className="border-l-4 border-indigo-300 pl-4 text-gray-600 italic">"{q}"</blockquote>
+              <blockquote key={i} className="border-l-4 border-teal-300 pl-4 text-gray-600 italic">"{q}"</blockquote>
             ))}
           </div>
         </div>
 
         {/* CTA */}
-        <div className="bg-indigo-600 rounded-2xl p-8 text-center text-white">
+        <div className="bg-teal-600 rounded-2xl p-8 text-center text-white">
           <h2 className="text-2xl font-bold mb-2">Generate reports like this for your candidates</h2>
-          <p className="text-indigo-200 mb-6">Free during beta. No credit card required.</p>
+          <p className="text-teal-200 mb-6">Free during beta. No credit card required.</p>
           <Link to="/register"
-            className="inline-block bg-white text-indigo-600 px-8 py-3 rounded-xl font-bold hover:bg-indigo-50 transition">
+            className="inline-block bg-white text-teal-600 px-8 py-3 rounded-xl font-bold hover:bg-teal-50 transition">
             Get Started Free →
           </Link>
         </div>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import AccountDropdown from '../components/AccountDropdown';
+import Logo from '../components/Logo';
 
 function Toggle({ enabled, onChange, label, description }) {
   return (
@@ -12,7 +13,7 @@ function Toggle({ enabled, onChange, label, description }) {
         {description && <div className="text-xs text-gray-400 mt-0.5">{description}</div>}
       </div>
       <button type="button" onClick={() => onChange(!enabled)}
-        className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full transition-colors duration-200 focus:outline-none ${enabled ? 'bg-indigo-600' : 'bg-gray-200'}`}>
+        className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full transition-colors duration-200 focus:outline-none ${enabled ? 'bg-teal-600' : 'bg-gray-200'}`}>
         <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 mt-0.5 ${enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
       </button>
     </div>
@@ -52,9 +53,7 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center">
-        <Link to={dashboardPath} className="text-xl font-bold text-indigo-700">
-          eRefs<span className="text-gray-400">.ai</span>
-        </Link>
+        <Logo to={dashboardPath} />
         <AccountDropdown />
       </nav>
 
@@ -72,7 +71,7 @@ export default function Settings() {
             <div>
               <label className="block text-sm text-gray-600 mb-1">Full name</label>
               <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
             </div>
             <div>
               <label className="block text-sm text-gray-600 mb-1">Email</label>
@@ -83,7 +82,7 @@ export default function Settings() {
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Company</label>
                 <input value={form.company || ''} onChange={e => setForm({ ...form, company: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
                   placeholder="Acme Corp" />
               </div>
             )}
@@ -91,7 +90,7 @@ export default function Settings() {
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Headline</label>
                 <input value={form.headline || ''} onChange={e => setForm({ ...form, headline: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
                   placeholder="e.g. Senior Software Engineer" />
               </div>
             )}
@@ -117,7 +116,7 @@ export default function Settings() {
               />
 
               {form.wants_custom_questions && (
-                <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-3 text-sm text-indigo-700">
+                <div className="bg-teal-50 border border-teal-100 rounded-lg px-4 py-3 text-sm text-teal-700">
                   Your interest has been noted. Custom question sets will be available in an upcoming release.
                 </div>
               )}
@@ -127,7 +126,7 @@ export default function Settings() {
                 <div className="flex items-center gap-3">
                   <select value={form.reminder_days}
                     onChange={e => setForm({ ...form, reminder_days: parseInt(e.target.value) })}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
                     {[3, 5, 7, 10, 14].map(d => (
                       <option key={d} value={d}>{d} days</option>
                     ))}
@@ -145,7 +144,7 @@ export default function Settings() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-gray-700 capitalize">{form.subscription_plan} Plan</span>
-                  <span className="text-xs bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full font-medium">Active</span>
+                  <span className="text-xs bg-teal-100 text-teal-600 px-2 py-0.5 rounded-full font-medium">Active</span>
                 </div>
                 <div className="text-xs text-gray-400 mt-1">
                   Member since {new Date(form.subscription_started_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
@@ -182,7 +181,7 @@ export default function Settings() {
                 )}
               </div>
               <Link to="/terms" target="_blank"
-                className="text-sm text-indigo-600 hover:underline font-medium">
+                className="text-sm text-teal-600 hover:underline font-medium">
                 View →
               </Link>
             </div>
@@ -190,7 +189,7 @@ export default function Settings() {
 
           <div className="flex items-center gap-4">
             <button type="submit" disabled={saving}
-              className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50">
+              className="bg-teal-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-teal-700 transition disabled:opacity-50">
               {saving ? 'Saving…' : 'Save Changes'}
             </button>
             {saved && <span className="text-sm text-green-600 font-medium">✓ Changes saved</span>}

@@ -77,7 +77,7 @@ export default function ReferralDetail() {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200 px-8 py-4">
-        <Link to="/dashboard" className="text-xl font-bold text-indigo-700">← Dashboard</Link>
+        <Link to="/dashboard" className="text-xl font-bold text-teal-700">← Dashboard</Link>
       </nav>
 
       <main className="max-w-2xl mx-auto px-8 py-10">
@@ -114,7 +114,7 @@ export default function ReferralDetail() {
           {!request?.archived_at && (
             <button
               onClick={() => setAddOpen(o => !o)}
-              className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+              className="text-sm text-teal-600 hover:text-teal-800 font-medium"
             >
               + Add Referrer
             </button>
@@ -123,7 +123,7 @@ export default function ReferralDetail() {
 
         {/* Add referrer inline form */}
         {addOpen && (
-          <form onSubmit={addReferrer} className="bg-indigo-50 border border-indigo-200 rounded-xl px-5 py-4 mb-3 space-y-2">
+          <form onSubmit={addReferrer} className="bg-teal-50 border border-teal-200 rounded-xl px-5 py-4 mb-3 space-y-2">
             {addError && <p className="text-xs text-red-500">{addError}</p>}
           <div className="flex gap-3 items-end">
             <div className="flex-1">
@@ -132,7 +132,7 @@ export default function ReferralDetail() {
                 required
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
                 placeholder="Jane Smith"
               />
             </div>
@@ -143,14 +143,14 @@ export default function ReferralDetail() {
                 type="email"
                 value={newEmail}
                 onChange={e => setNewEmail(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
                 placeholder="jane@example.com"
               />
             </div>
             <button
               type="submit"
               disabled={adding}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 transition disabled:opacity-50"
+              className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-700 transition disabled:opacity-50"
             >
               {adding ? 'Sending…' : 'Send Invite'}
             </button>
@@ -182,7 +182,7 @@ export default function ReferralDetail() {
                   {r.report_id && (
                     <Link
                       to={`/reports/${r.report_id}`}
-                      className="text-sm bg-indigo-600 text-white px-4 py-1.5 rounded-lg hover:bg-indigo-700 transition"
+                      className="text-sm bg-teal-600 text-white px-4 py-1.5 rounded-lg hover:bg-teal-700 transition"
                     >
                       View Report
                     </Link>

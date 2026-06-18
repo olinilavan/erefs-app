@@ -1,3 +1,4 @@
+import Logo from '../components/Logo';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -24,7 +25,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-md">
-        <Link to="/" className="text-xl font-bold text-indigo-700">eRefs<span className="text-gray-400">.ai</span></Link>
+        <Logo />
         <h1 className="text-2xl font-bold mt-6 mb-1">Welcome back</h1>
         <p className="text-gray-500 mb-6">Log in to your account</p>
 
@@ -33,22 +34,22 @@ export default function Login() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <input type="email" placeholder="Email" required value={form.email}
             onChange={e => setForm({ ...form, email: e.target.value })}
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
           <div>
             <input type="password" placeholder="Password" required value={form.password}
               onChange={e => setForm({ ...form, password: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
             <div className="text-right mt-1">
-              <Link to="/forgot-password" className="text-sm text-indigo-600 hover:underline">Forgot password?</Link>
+              <Link to="/forgot-password" className="text-sm text-teal-600 hover:underline">Forgot password?</Link>
             </div>
           </div>
-          <button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition">
+          <button type="submit" className="w-full bg-teal-600 text-white py-3 rounded-lg font-semibold hover:bg-teal-700 transition">
             Log In
           </button>
         </form>
 
         <p className="mt-4 text-center text-gray-500 text-sm">
-          Don't have an account? <Link to="/register" className="text-indigo-600 font-medium">Sign up</Link>
+          Don't have an account? <Link to="/register" className="text-teal-600 font-medium">Sign up</Link>
         </p>
       </div>
     </div>

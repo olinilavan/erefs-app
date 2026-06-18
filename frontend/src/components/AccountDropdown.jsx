@@ -21,7 +21,7 @@ export default function AccountDropdown() {
         onClick={() => setOpen(o => !o)}
         className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition"
       >
-        <div className="w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+        <div className="w-7 h-7 rounded-full bg-teal-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
           {user?.name?.charAt(0).toUpperCase()}
         </div>
         <div className="text-left hidden sm:block">

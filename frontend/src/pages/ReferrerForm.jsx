@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../api';
+import Logo from '../components/Logo';
 
 const QUESTIONS = [
   { n: 1, text: 'How long have you known this person and in what capacity?', type: 'text' },
@@ -65,7 +66,7 @@ export default function ReferrerForm() {
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-10">
-          <div className="text-2xl font-bold text-indigo-700 mb-2">eRefs<span className="text-gray-400">.ai</span></div>
+          <div className="flex justify-center mb-2"><Logo height={36} /></div>
           <h1 className="text-2xl font-bold">Reference for {referrer.candidate_name}</h1>
           {referrer.target_role && <p className="text-gray-500 mt-1">Role: {referrer.target_role}</p>}
           <p className="text-gray-400 text-sm mt-2">10 questions · ~5 minutes</p>
@@ -74,14 +75,14 @@ export default function ReferrerForm() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {QUESTIONS.map(q => (
             <div key={q.n} className="bg-white rounded-xl border border-gray-200 p-6">
-              <div className="text-xs font-medium text-indigo-600 mb-2">Question {q.n} of 10</div>
+              <div className="text-xs font-medium text-teal-600 mb-2">Question {q.n} of 10</div>
               <p className="font-medium text-gray-800 mb-4">{q.text}</p>
               {q.type === 'rating' && (
                 <div className="flex gap-3 mb-3">
                   {[1, 2, 3, 4, 5].map(v => (
                     <button key={v} type="button"
                       onClick={() => setAnswer(q.n, 'rating', v)}
-                      className={`w-10 h-10 rounded-full border-2 font-semibold text-sm transition ${answers[q.n]?.rating === v ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-gray-300 text-gray-600 hover:border-indigo-400'}`}>
+                      className={`w-10 h-10 rounded-full border-2 font-semibold text-sm transition ${answers[q.n]?.rating === v ? 'bg-teal-600 border-teal-600 text-white' : 'border-gray-300 text-gray-600 hover:border-teal-400'}`}>
                       {v}
                     </button>
                   ))}
@@ -92,12 +93,12 @@ export default function ReferrerForm() {
                 value={answers[q.n]?.text || ''}
                 onChange={e => setAnswer(q.n, 'text', e.target.value)}
                 required={q.type === 'text'}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
             </div>
           ))}
 
           <button type="submit"
-            className="w-full bg-indigo-600 text-white py-4 rounded-xl font-semibold hover:bg-indigo-700 transition text-lg">
+            className="w-full bg-teal-600 text-white py-4 rounded-xl font-semibold hover:bg-teal-700 transition text-lg">
             Submit Reference
           </button>
         </form>
