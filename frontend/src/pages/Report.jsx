@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api';
+import { useAuth } from '../context/AuthContext';
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts';
 
 export default function Report() {
   const { id } = useParams();
+  const { user } = useAuth();
+  const dashboardPath = user?.role === 'employer' ? '/employer/dashboard' : '/dashboard';
   const [report, setReport] = useState(null);
 
   useEffect(() => {
@@ -27,7 +30,7 @@ export default function Report() {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center">
-        <Link to="/dashboard" className="text-xl font-bold text-teal-700">← Dashboard</Link>
+        <Link to={dashboardPath} className="text-xl font-bold text-teal-700">← Dashboard</Link>
         <button onClick={() => navigator.clipboard.writeText(shareUrl)}
           className="text-sm bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition">
           📋 Copy Share Link
