@@ -1,4 +1,4 @@
--- eRefs.ai Database Schema
+-- VouchMetrics Database Schema
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 

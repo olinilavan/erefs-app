@@ -1,4 +1,4 @@
-# eRefs.ai — Setup Guide
+# VouchMetrics — Setup Guide
 
 ## Prerequisites
 - Node.js 18+

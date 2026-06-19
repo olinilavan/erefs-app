@@ -1,7 +1,7 @@
 {
   "name": "erefs-backend",
   "version": "1.0.0",
-  "description": "eRefs.ai Node.js API",
+  "description": "VouchMetrics Node.js API",
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
