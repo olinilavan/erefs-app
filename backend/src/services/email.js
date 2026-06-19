@@ -109,4 +109,40 @@ async function sendVerificationEmail(email, token) {
   console.log('[verification email sent]', data?.id, '→', email);
 }
 
-module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail };
+async function sendReminderEmail(referrer, requesterName, targetRole) {
+  const formUrl = `${BASE_URL}/ref/${referrer.token}`;
+
+  console.log(`\n[Reminder URL] ${formUrl} → ${referrer.email}\n`);
+
+  if (isDev) return;
+
+  const roleText = targetRole ? ` for a <strong>${targetRole}</strong> role` : '';
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: referrer.email,
+    subject: `Reminder: Reference request from ${requesterName}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a2e;">Friendly reminder — reference request pending</h2>
+        <p>Hi ${referrer.name},</p>
+        <p>Just a reminder that <strong>${requesterName}</strong> is still waiting for your reference${roleText}.</p>
+        <p>It only takes about 5–10 minutes to complete.</p>
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${formUrl}" style="background: #0f766e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+            Complete Reference Form
+          </a>
+        </p>
+        <p style="color: #888; font-size: 12px;">If you've already completed this or don't wish to participate, you can safely ignore this email.</p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    console.error('[reminder email failed]', error);
+    throw new Error(error.message);
+  }
+  console.log('[reminder email sent]', data?.id, '→', referrer.email);
+}
+
+module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail };

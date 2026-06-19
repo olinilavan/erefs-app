@@ -122,17 +122,25 @@ export default function Settings() {
               )}
 
               <div>
-                <div className="text-sm font-medium text-gray-700 mb-1">Remind me if referrer hasn't responded in</div>
-                <div className="flex items-center gap-3">
-                  <select value={form.reminder_days}
-                    onChange={e => setForm({ ...form, reminder_days: parseInt(e.target.value) })}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
-                    {[3, 5, 7, 10, 14].map(d => (
-                      <option key={d} value={d}>{d} days</option>
-                    ))}
-                  </select>
-                  <span className="text-sm text-gray-500">after invite is sent</span>
-                </div>
+                <Toggle
+                  enabled={form.reminder_days > 0}
+                  onChange={v => setForm({ ...form, reminder_days: v ? 7 : 0 })}
+                  label="Send referrer reminders"
+                  description="Automatically email referrers who haven't responded after a set number of days."
+                />
+                {form.reminder_days > 0 && (
+                  <div className="flex items-center gap-3 mt-3 ml-1">
+                    <span className="text-sm text-gray-500">Remind after</span>
+                    <select value={form.reminder_days}
+                      onChange={e => setForm({ ...form, reminder_days: parseInt(e.target.value) })}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+                      {[3, 5, 7, 10, 14].map(d => (
+                        <option key={d} value={d}>{d} days</option>
+                      ))}
+                    </select>
+                    <span className="text-sm text-gray-500">after invite is sent</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
