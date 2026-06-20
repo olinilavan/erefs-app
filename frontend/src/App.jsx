@@ -19,6 +19,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import VerifyEmail from './pages/VerifyEmail';
+import GoogleRoleSelect from './pages/GoogleRoleSelect';
 
 function PrivateRoute({ children, role, adminOnly }) {
   const { user } = useAuth();
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/sample-report" element={<SampleReport />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/verify-email/:token" element={<VerifyEmail />} />
+        <Route path="/auth/google/role" element={<GoogleRoleSelect />} />
 
         {/* Job Seeker */}
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />

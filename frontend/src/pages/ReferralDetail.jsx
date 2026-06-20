@@ -33,7 +33,7 @@ function CopyLinkButton({ token }) {
 export default function ReferralDetail() {
   const { id } = useParams();
   const { user } = useAuth();
-  const dashboardPath = user?.role === 'employer' ? '/employer/dashboard' : '/dashboard';
+  const dashboardPath = user?.is_admin ? '/admin' : user?.role === 'employer' ? '/employer/dashboard' : '/dashboard';
   const [rows, setRows] = useState([]);
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState('');
@@ -80,7 +80,11 @@ export default function ReferralDetail() {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200 px-8 py-4">
-        <Link to={dashboardPath} className="text-xl font-bold text-teal-700">← Dashboard</Link>
+        <Link
+          to={dashboardPath}
+          state={user?.is_admin && request?.requester_id ? { employerId: request.requester_id } : undefined}
+          className="text-xl font-bold text-teal-700"
+        >← Dashboard</Link>
       </nav>
 
       <main className="max-w-2xl mx-auto px-8 py-10">

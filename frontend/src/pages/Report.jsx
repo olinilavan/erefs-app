@@ -7,7 +7,7 @@ import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, Tool
 export default function Report() {
   const { id } = useParams();
   const { user } = useAuth();
-  const dashboardPath = user?.role === 'employer' ? '/employer/dashboard' : '/dashboard';
+  const dashboardPath = user?.is_admin ? '/admin' : user?.role === 'employer' ? '/employer/dashboard' : '/dashboard';
   const [report, setReport] = useState(null);
 
   useEffect(() => {

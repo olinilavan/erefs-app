@@ -27,6 +27,16 @@ export function AuthProvider({ children }) {
     return user;
   };
 
+  const googleLogin = async (credential, extra = {}) => {
+    const res = await api.post('/api/auth/google', { credential, ...extra });
+    if (res.data.needsRole) return res.data;
+    const { token, user } = res.data;
+    localStorage.setItem('erefs_token', token);
+    localStorage.setItem('erefs_user', JSON.stringify(user));
+    setUser(user);
+    return user;
+  };
+
   const logout = () => {
     localStorage.removeItem('erefs_token');
     localStorage.removeItem('erefs_user');
@@ -34,7 +44,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, login, register, googleLogin, logout }}>
       {children}
     </AuthContext.Provider>
   );

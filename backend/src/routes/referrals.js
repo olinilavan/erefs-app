@@ -81,15 +81,16 @@ router.get('/', auth, async (req, res) => {
 
 // GET /api/referrals/:id
 router.get('/:id', auth, async (req, res) => {
+  const isAdmin = req.user.is_admin;
   const result = await db.query(
     `SELECT rr.*, rf.id AS referrer_id, rf.name AS referrer_name, rf.email AS referrer_email,
             rf.token, rf.submitted_at, rf.created_at AS referrer_created_at, rep.id AS report_id
      FROM referral_requests rr
      LEFT JOIN referrers rf ON rf.referral_request_id = rr.id
      LEFT JOIN reports rep ON rep.referrer_id = rf.id
-     WHERE rr.id = $1 AND rr.requester_id = $2
+     WHERE rr.id = $1 AND ($2 OR rr.requester_id = $3)
      ORDER BY rf.created_at ASC`,
-    [req.params.id, req.user.id]
+    [req.params.id, isAdmin, req.user.id]
   );
   if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
   res.json(result.rows);
@@ -101,8 +102,8 @@ router.post('/:id/referrers', auth, async (req, res) => {
   if (!name || !email) return res.status(400).json({ error: 'Name and email are required' });
 
   const ownerCheck = await db.query(
-    `SELECT id FROM referral_requests WHERE id = $1 AND requester_id = $2`,
-    [req.params.id, req.user.id]
+    `SELECT id FROM referral_requests WHERE id = $1 AND ($2 OR requester_id = $3)`,
+    [req.params.id, req.user.is_admin, req.user.id]
   );
   if (!ownerCheck.rows.length) return res.status(404).json({ error: 'Not found' });
 

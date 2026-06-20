@@ -1,10 +1,14 @@
 import Logo from '../components/Logo';
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
+import { useAuth } from '../context/AuthContext';
 import api from '../api';
 
 export default function Register() {
   const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const { googleLogin } = useAuth();
   const [form, setForm] = useState({
     name: '', email: '', password: '',
     role: params.get('role') || 'jobseeker',
@@ -13,6 +17,19 @@ export default function Register() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState('');
   const [registered, setRegistered] = useState(false);
+
+  async function handleGoogleSuccess({ credential }) {
+    setError('');
+    try {
+      const result = await googleLogin(credential);
+      if (result?.needsRole) return navigate('/auth/google/role', { state: { credential } });
+      if (result.is_admin) navigate('/admin');
+      else if (result.role === 'employer') navigate('/employer/dashboard');
+      else navigate('/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Google sign-in failed');
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -121,6 +138,16 @@ export default function Register() {
             Create Account
           </button>
         </form>
+
+        <div className="flex items-center gap-3 my-4">
+          <div className="flex-1 h-px bg-gray-200" />
+          <span className="text-xs text-gray-400">or</span>
+          <div className="flex-1 h-px bg-gray-200" />
+        </div>
+
+        <div className="flex justify-center">
+          <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => setError('Google sign-in failed')} width="368" />
+        </div>
 
         <p className="mt-4 text-center text-gray-500 text-sm">
           Already have an account? <Link to="/login" className="text-teal-600 font-medium">Log in</Link>

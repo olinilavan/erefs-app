@@ -1,6 +1,7 @@
 import Logo from '../components/Logo';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 
@@ -9,8 +10,21 @@ export default function Login() {
   const [error, setError] = useState('');
   const [unverified, setUnverified] = useState(false);
   const [resent, setResent] = useState(false);
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
+
+  async function handleGoogleSuccess({ credential }) {
+    setError('');
+    try {
+      const result = await googleLogin(credential);
+      if (result?.needsRole) return navigate('/auth/google/role', { state: { credential } });
+      if (result.is_admin) navigate('/admin');
+      else if (result.role === 'employer') navigate('/employer/dashboard');
+      else navigate('/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Google sign-in failed');
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -78,6 +92,16 @@ export default function Login() {
             Log In
           </button>
         </form>
+
+        <div className="flex items-center gap-3 my-4">
+          <div className="flex-1 h-px bg-gray-200" />
+          <span className="text-xs text-gray-400">or</span>
+          <div className="flex-1 h-px bg-gray-200" />
+        </div>
+
+        <div className="flex justify-center">
+          <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => setError('Google sign-in failed')} width="368" />
+        </div>
 
         <p className="mt-4 text-center text-gray-500 text-sm">
           Don't have an account? <Link to="/register" className="text-teal-600 font-medium">Sign up</Link>

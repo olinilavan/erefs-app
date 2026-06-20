@@ -1,8 +1,11 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
 const db = require('../db');
 const { sendPasswordReset, sendVerificationEmail } = require('../services/email');
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const router = express.Router();
 
@@ -151,6 +154,63 @@ router.post('/reset-password', async (req, res) => {
     res.json({ message: 'Password reset successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/auth/google
+router.post('/google', async (req, res) => {
+  const { credential, role, company, headline, termsAccepted } = req.body;
+  if (!credential) return res.status(400).json({ error: 'Missing Google credential' });
+
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const { sub: googleId, email, name } = ticket.getPayload();
+
+    const existing = await db.query(
+      'SELECT * FROM users WHERE google_id = $1 OR email = $2',
+      [googleId, email]
+    );
+
+    if (existing.rows.length > 0) {
+      const user = existing.rows[0];
+      if (user.is_active === false) {
+        return res.status(403).json({ error: 'Your account has been deactivated. Please contact support.' });
+      }
+      // Link google_id if the user previously registered with email/password
+      if (!user.google_id) {
+        await db.query('UPDATE users SET google_id = $1, is_verified = true WHERE id = $2', [googleId, user.id]);
+      }
+      const token = jwt.sign(
+        { id: user.id, role: user.role, name: user.name, is_admin: user.is_admin || false },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+      return res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, company: user.company || null, is_admin: user.is_admin || false } });
+    }
+
+    // New Google user — need role before we can create the account
+    if (!role) return res.status(200).json({ needsRole: true });
+    if (!termsAccepted) return res.status(400).json({ error: 'You must accept the Terms & Conditions' });
+
+    const result = await db.query(
+      `INSERT INTO users (email, name, role, company, headline, google_id, is_verified, terms_accepted_at)
+       VALUES ($1, $2, $3, $4, $5, $6, true, NOW())
+       RETURNING id, email, name, role, company, is_admin`,
+      [email, name, role, company || null, headline || null, googleId]
+    );
+    const user = result.rows[0];
+    const token = jwt.sign(
+      { id: user.id, role: user.role, name: user.name, is_admin: user.is_admin || false },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, company: user.company || null, is_admin: user.is_admin || false } });
+  } catch (err) {
+    console.error('[google auth]', err.message);
+    res.status(401).json({ error: 'Invalid Google token' });
   }
 });
 

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 
 export default function AdminDashboard() {
   const { logout } = useAuth();
+  const { state: navState } = useLocation();
   const [stats, setStats] = useState(null);
   const [employers, setEmployers] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -16,7 +17,13 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     api.get('/api/admin/stats').then(r => setStats(r.data));
-    api.get('/api/admin/employers').then(r => setEmployers(r.data));
+    api.get('/api/admin/employers').then(r => {
+      setEmployers(r.data);
+      if (navState?.employerId) {
+        const emp = r.data.find(e => e.id === navState.employerId);
+        if (emp) selectEmployer(emp);
+      }
+    });
   }, []);
 
   async function selectEmployer(emp) {
