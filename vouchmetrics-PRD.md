@@ -116,23 +116,30 @@ After all referrer responses are collected, the system passes them to an LLM (e.
 
 ### Job Seeker Dashboard
 - Create profile (name, headline, target role)
-- Add referrers and track response status (Pending / Completed)
-- View and manage Reference Reports
+- Sign up with email/password or Google Sign-In
+- Add referrers and track response status with enriched badges: Invited / Viewed / Completed / Declined / Call Requested
+- View and manage Reference Reports (generated only for Completed referrers)
 - Share report via link or PDF export
 - Re-use referrers across multiple job applications
 
 ### Employer Dashboard
 - Create company profile and job postings
+- Sign up with email/password or Google Sign-In
 - Invite candidates for referral check (by email)
-- Track referral status across all candidates in a pipeline view
+- Track referral status across all candidates in a pipeline view with enriched status badges
 - View AI Analytics Reports per candidate
+- Call Requested status visible in dashboard — employer contacts referrer directly
 - Compare candidates side-by-side (future)
 
 ### Referrer Experience
 - No login required — one-click form via email link
+- Invite email includes "Not able to help? Decline · Request a Call Instead" links for immediate action without opening the form
+- Reminder emails (if enabled by requester) also include Decline and Request a Call links
+- If reminders are enabled, invite email states the reminder schedule (e.g. "You'll receive a reminder in 7 days")
 - Mobile-friendly form
 - Progress indicator (10 questions)
-- Confirmation screen after submission
+- Decline or Request a Call buttons available on the form page (secondary actions, low visual weight)
+- Confirmation screen after submission, decline, or call request
 
 ---
 
@@ -164,12 +171,12 @@ After all referrer responses are collected, the system passes them to an LLM (e.
 
 | Table | Key Fields |
 |-------|-----------|
-| users | id, email, role (jobseeker/employer), name, company |
+| users | id, email, role (jobseeker/employer), name, company, google_id, reminder_days, is_verified, is_admin |
 | jobs | id, employer_id, title, description, status |
 | referral_requests | id, requester_id, requester_role, candidate_name, candidate_email, job_id, status |
-| referrers | id, referral_request_id, name, email, token, submitted_at |
+| referrers | id, referral_request_id, name, email, token, status (invited/viewed/completed/declined/call_requested), viewed_at, submitted_at |
 | responses | id, referrer_id, question_number, answer_text, rating |
-| reports | id, referral_request_id, llm_output_json, pdf_url, share_token, created_at |
+| reports | id, referrer_id, llm_output_json, share_token, created_at |
 
 ---
 
