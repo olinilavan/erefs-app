@@ -169,4 +169,78 @@ async function sendReminderEmail(referrer, requesterName, targetRole) {
   console.log('[reminder email sent]', data?.id, '→', referrer.email);
 }
 
-module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail };
+async function sendAdminReminderReport(stats) {
+  const recipients = (process.env.ADMIN_REPORT_EMAILS || '')
+    .split(',').map(e => e.trim()).filter(Boolean);
+
+  console.log(`\n[reminders] Daily report — ${stats.date}`);
+  console.log(`  Total: ${stats.total} | Employers: ${stats.employers} | Job Seekers: ${stats.jobSeekers} | Failures: ${stats.failures}`);
+
+  if (!recipients.length || isDev) return;
+
+  const breakdownHtml = stats.byRequester.length
+    ? stats.byRequester.map(r => `
+        <tr>
+          <td style="padding: 6px 12px;">${r.displayName}</td>
+          <td style="padding: 6px 12px; color: #555; text-transform: capitalize;">${r.role === 'employer' ? 'Employer' : 'Job Seeker'}</td>
+          <td style="padding: 6px 12px; text-align: right;">${r.count}</td>
+        </tr>`).join('')
+    : `<tr><td colspan="3" style="padding: 6px 12px; color: #888;">No reminders sent today</td></tr>`;
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: recipients,
+    subject: `VouchMetrics — Daily Reminder Report — ${stats.date}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
+        <h2 style="color: #1a1a2e;">Daily Reminder Report</h2>
+        <p style="color: #555;">${stats.date}</p>
+
+        <table style="width: 100%; border-collapse: collapse; margin: 16px 0; background: #f9fafb; border-radius: 8px;">
+          <tr>
+            <td style="padding: 12px 16px; font-size: 14px; color: #555;">Total reminders sent</td>
+            <td style="padding: 12px 16px; font-size: 22px; font-weight: bold; text-align: right;">${stats.total}</td>
+          </tr>
+          <tr style="border-top: 1px solid #e5e7eb;">
+            <td style="padding: 12px 16px; font-size: 14px; color: #555;">Employers</td>
+            <td style="padding: 12px 16px; font-size: 18px; font-weight: bold; text-align: right; color: #0f766e;">${stats.employers}</td>
+          </tr>
+          <tr style="border-top: 1px solid #e5e7eb;">
+            <td style="padding: 12px 16px; font-size: 14px; color: #555;">Job Seekers</td>
+            <td style="padding: 12px 16px; font-size: 18px; font-weight: bold; text-align: right; color: #0f766e;">${stats.jobSeekers}</td>
+          </tr>
+          <tr style="border-top: 1px solid #e5e7eb;">
+            <td style="padding: 12px 16px; font-size: 14px; color: #555;">Failures</td>
+            <td style="padding: 12px 16px; font-size: 18px; font-weight: bold; text-align: right; color: ${stats.failures > 0 ? '#dc2626' : '#16a34a'};">${stats.failures}</td>
+          </tr>
+        </table>
+
+        <h3 style="color: #1a1a2e; margin-top: 24px;">Breakdown by Requester</h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <thead>
+            <tr style="background: #f3f4f6;">
+              <th style="padding: 8px 12px; text-align: left; color: #555;">Name</th>
+              <th style="padding: 8px 12px; text-align: left; color: #555;">Role</th>
+              <th style="padding: 8px 12px; text-align: right; color: #555;">Reminders</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${breakdownHtml}
+          </tbody>
+        </table>
+
+        <p style="color: #888; font-size: 12px; margin-top: 24px;">
+          Sent automatically by VouchMetrics reminder cron — daily at 08:00.
+        </p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    console.error('[admin report email failed]', error);
+  } else {
+    console.log('[admin report sent]', data?.id, '→', recipients.join(', '));
+  }
+}
+
+module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendAdminReminderReport };

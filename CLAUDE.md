@@ -57,7 +57,7 @@ Express.js API on port 4000, CommonJS modules (`require`/`module.exports`).
 - `src/routes/referrers.js` — Public token-based routes (no auth): `GET /api/referrers/:token` (loads form + marks `viewed`), `POST /api/referrers/:token/submit`, `POST /api/referrers/:token/decline`, `POST /api/referrers/:token/call-request`.
 - `src/services/llm.js` — Calls Groq API (`llama-3.3-70b-versatile` by default, overridden by `LLM_MODEL` env var) via the Vercel AI SDK (`ai` package). Triggered only when a referrer's status is set to `completed`; generates and upserts one report per referrer into the `reports` table.
 - `src/services/email.js` — Wraps Resend. In dev (no `RESEND_API_KEY`), all sends are no-ops that log URLs to console. Invite emails include a conditional reminder note (if `reminder_days > 0`) and "Not able to help? Decline · Request a Call" links. Reminder emails include the same action links.
-- `src/services/reminders.js` — `node-cron` job running daily at 08:00 to send one reminder email per referrer in `invited` or `viewed` status once they cross the `user.reminder_days` threshold. Referrers with `declined` or `call_requested` status are excluded. `sendPendingReminders` is exported for manual testing.
+- `src/services/reminders.js` — `node-cron` job running daily at 08:00 to send one reminder email per referrer in `invited` or `viewed` status once they cross the `user.reminder_days` threshold. Referrers with `declined` or `call_requested` status are excluded. After the loop, sends a summary report to `ADMIN_REPORT_EMAILS` (total sent, split by employer vs job seeker, per-requester breakdown, failure count). `sendPendingReminders` is exported for manual testing.
 - `src/db/schema.sql` — Source of truth for the DB schema. Migrations in `src/db/migrations/` are numbered sequentially and must be applied manually.
 
 ### Frontend (`erefs-app/frontend/`)
@@ -114,6 +114,7 @@ EMAIL_FROM=...
 FRONTEND_URL=http://localhost:5173   # comma-separated for multiple origins
 PORT=4000
 GOOGLE_CLIENT_ID=...                 # from Google Cloud Console (OAuth 2.0 client)
+ADMIN_REPORT_EMAILS=admin@vouchmetrics.com  # comma-separated; receives daily reminder summary
 ```
 
 **Frontend** (`erefs-app/frontend/.env`):
