@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import api from '../api';
 import Logo from '../components/Logo';
 
@@ -16,15 +16,50 @@ const QUESTIONS = [
   { n: 10, text: 'Any additional comments you\'d like to share about this candidate?', type: 'text' },
 ];
 
+function TerminalScreen({ icon, title, message }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center text-center px-8">
+      <div>
+        <div className="text-5xl mb-4">{icon}</div>
+        <h2 className="text-2xl font-bold mb-2">{title}</h2>
+        <p className="text-gray-500">{message}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function ReferrerForm() {
   const { token } = useParams();
+  const [searchParams] = useSearchParams();
+  const autoAction = searchParams.get('action'); // 'decline' | 'call' (from reminder email links)
   const [referrer, setReferrer] = useState(null);
   const [answers, setAnswers] = useState({});
-  const [status, setStatus] = useState('loading'); // loading | form | submitted | error
+  const [status, setStatus] = useState('loading'); // loading | form | submitted | declined | call_requested | error
+  const [actionLoading, setActionLoading] = useState(null); // 'decline' | 'call'
 
   useEffect(() => {
     api.get(`/api/referrers/${token}`)
-      .then(r => { setReferrer(r.data); setStatus('form'); })
+      .then(async r => {
+        const data = r.data;
+        if (data.status === 'completed') { setStatus('submitted'); return; }
+        if (data.status === 'declined') { setStatus('declined'); return; }
+        if (data.status === 'call_requested') { setStatus('call_requested'); return; }
+
+        // Auto-trigger action from reminder email link (?action=decline or ?action=call)
+        if (autoAction === 'decline') {
+          try { await api.post(`/api/referrers/${token}/decline`); } catch {}
+          setStatus('declined');
+          return;
+        }
+        if (autoAction === 'call') {
+          try { await api.post(`/api/referrers/${token}/call-request`); } catch {}
+          setStatus('call_requested');
+          return;
+        }
+
+        setReferrer(data);
+        setStatus('form');
+      })
       .catch(() => setStatus('error'));
   }, [token]);
 
@@ -47,29 +82,64 @@ export default function ReferrerForm() {
     }
   };
 
+  const handleDecline = async () => {
+    setActionLoading('decline');
+    try {
+      await api.post(`/api/referrers/${token}/decline`);
+      setStatus('declined');
+    } catch {
+      alert('Something went wrong. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCallRequest = async () => {
+    setActionLoading('call');
+    try {
+      await api.post(`/api/referrers/${token}/call-request`);
+      setStatus('call_requested');
+    } catch {
+      alert('Something went wrong. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   if (status === 'loading') return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading...</div>;
-  if (status === 'error') return (
-    <div className="min-h-screen flex items-center justify-center text-center px-8">
-      <div><div className="text-5xl mb-4">⚠️</div><p className="text-gray-600">This link is invalid or has expired.</p></div>
-    </div>
-  );
-  if (status === 'submitted') return (
-    <div className="min-h-screen flex items-center justify-center text-center px-8">
-      <div><div className="text-5xl mb-4">✅</div>
-        <h2 className="text-2xl font-bold mb-2">Thank you!</h2>
-        <p className="text-gray-500">Your reference has been submitted successfully.</p>
-      </div>
-    </div>
-  );
+  if (status === 'error') return <TerminalScreen icon="⚠️" title="Link unavailable" message="This link is invalid or has expired." />;
+  if (status === 'submitted') return <TerminalScreen icon="✅" title="Thank you!" message="Your reference has been submitted successfully." />;
+  if (status === 'declined') return <TerminalScreen icon="👋" title="Response recorded" message="You've declined this reference request. The requester has been notified." />;
+  if (status === 'call_requested') return <TerminalScreen icon="📞" title="Call request noted" message="The requester will reach out to schedule a call with you." />;
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-2xl mx-auto">
-        <div className="text-center mb-10">
+        <div className="text-center mb-8">
           <div className="flex justify-center mb-2"><Logo height={36} /></div>
           <h1 className="text-2xl font-bold">Reference for {referrer.candidate_name}</h1>
           {referrer.target_role && <p className="text-gray-500 mt-1">Role: {referrer.target_role}</p>}
           <p className="text-gray-400 text-sm mt-2">10 questions · ~5 minutes</p>
+        </div>
+
+        {/* Secondary actions */}
+        <div className="flex justify-center gap-3 mb-8">
+          <button
+            type="button"
+            onClick={handleDecline}
+            disabled={!!actionLoading}
+            className="text-sm text-gray-500 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+          >
+            {actionLoading === 'decline' ? 'Declining…' : 'Decline'}
+          </button>
+          <button
+            type="button"
+            onClick={handleCallRequest}
+            disabled={!!actionLoading}
+            className="text-sm text-purple-600 border border-purple-300 px-4 py-2 rounded-lg hover:bg-purple-50 transition disabled:opacity-50"
+          >
+            {actionLoading === 'call' ? 'Requesting…' : 'Request a Call'}
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

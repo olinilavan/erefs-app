@@ -4,7 +4,23 @@ import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import { isPersonalEmail } from '../utils/emailValidation';
 
-const STATUS_STYLE = {
+const REFERRER_STATUS_STYLE = {
+  invited:       'bg-yellow-100 text-yellow-700',
+  viewed:        'bg-blue-100 text-blue-700',
+  completed:     'bg-green-100 text-green-700',
+  declined:      'bg-red-100 text-red-700',
+  call_requested:'bg-purple-100 text-purple-700',
+};
+
+const REFERRER_STATUS_LABEL = {
+  invited:       'Invited',
+  viewed:        'Viewed',
+  completed:     'Completed',
+  declined:      'Declined',
+  call_requested:'Call Requested',
+};
+
+const REQUEST_STATUS_STYLE = {
   completed: 'bg-green-100 text-green-700',
   pending:   'bg-yellow-100 text-yellow-700',
 };
@@ -54,7 +70,7 @@ export default function ReferralDetail() {
 
   const request = rows[0];
   const referrers = rows.filter(r => r.referrer_id);
-  const submittedCount = referrers.filter(r => r.submitted_at).length;
+  const submittedCount = referrers.filter(r => r.referrer_status === 'completed').length;
 
   async function addReferrer(e) {
     e.preventDefault();
@@ -76,6 +92,8 @@ export default function ReferralDetail() {
       setAdding(false);
     }
   }
+
+  const isPending = s => s === 'invited' || s === 'viewed';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -102,7 +120,7 @@ export default function ReferralDetail() {
               </div>
             </div>
             <div className="flex flex-col items-end gap-2">
-              <span className={`text-xs px-3 py-1 rounded-full font-medium ${STATUS_STYLE[request?.status] || 'bg-gray-100 text-gray-600'}`}>
+              <span className={`text-xs px-3 py-1 rounded-full font-medium ${REQUEST_STATUS_STYLE[request?.status] || 'bg-gray-100 text-gray-600'}`}>
                 {request?.status}
               </span>
               {request?.archived_at && (
@@ -110,7 +128,7 @@ export default function ReferralDetail() {
                   Archived
                 </span>
               )}
-              <span className="text-xs text-gray-400">{submittedCount} / {referrers.length} submitted</span>
+              <span className="text-xs text-gray-400">{submittedCount} / {referrers.length} completed</span>
             </div>
           </div>
         </div>
@@ -169,39 +187,69 @@ export default function ReferralDetail() {
         )}
 
         <div className="space-y-3">
-          {referrers.map(r => (
-            <div key={r.referrer_id} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="font-medium">{r.referrer_name}</div>
-                  <div className="text-sm text-gray-400">{r.referrer_email}</div>
-                  {r.submitted_at && (
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      Submitted {new Date(r.submitted_at).toLocaleDateString()}
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-                  <span className={`text-xs px-3 py-1 rounded-full font-medium ${r.submitted_at ? STATUS_STYLE.completed : STATUS_STYLE.pending}`}>
-                    {r.submitted_at ? 'Submitted' : 'Pending'}
-                  </span>
-                  {!r.submitted_at && <CopyLinkButton token={r.token} />}
-                  {r.report_id && (
-                    <Link
-                      to={`/reports/${r.report_id}`}
-                      className="text-sm bg-teal-600 text-white px-4 py-1.5 rounded-lg hover:bg-teal-700 transition"
-                    >
-                      View Report
-                    </Link>
-                  )}
-                  {r.submitted_at && !r.report_id && (
-                    <span className="text-xs text-gray-400 italic">Generating…</span>
-                  )}
+          {referrers.map(r => {
+            const statusKey = r.referrer_status || 'invited';
+            return (
+              <div key={r.referrer_id} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="font-medium">{r.referrer_name}</div>
+                    <div className="text-sm text-gray-400">{r.referrer_email}</div>
+                    {statusKey === 'viewed' && r.viewed_at && (
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        Viewed {new Date(r.viewed_at).toLocaleDateString()}
+                      </div>
+                    )}
+                    {statusKey === 'completed' && r.submitted_at && (
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        Completed {new Date(r.submitted_at).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                    <span className={`text-xs px-3 py-1 rounded-full font-medium ${REFERRER_STATUS_STYLE[statusKey] || 'bg-gray-100 text-gray-600'}`}>
+                      {REFERRER_STATUS_LABEL[statusKey] || statusKey}
+                    </span>
+                    {isPending(statusKey) && <CopyLinkButton token={r.token} />}
+                    {r.report_id && (
+                      <Link
+                        to={`/reports/${r.report_id}`}
+                        className="text-sm bg-teal-600 text-white px-4 py-1.5 rounded-lg hover:bg-teal-700 transition"
+                      >
+                        View Report
+                      </Link>
+                    )}
+                    {statusKey === 'completed' && !r.report_id && (
+                      <span className="text-xs text-gray-400 italic">Generating…</span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
+
+        {/* Status legend */}
+        <div className="mt-8 bg-white rounded-xl border border-gray-200 px-5 py-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Status guide</p>
+          <div className="space-y-2">
+            {[
+              { key: 'invited',        desc: 'Invite sent, no action yet' },
+              { key: 'viewed',         desc: 'Clicked the form link, hasn\'t submitted yet' },
+              { key: 'completed',      desc: 'Submitted the questionnaire' },
+              { key: 'declined',       desc: 'Unable to provide a reference' },
+              { key: 'call_requested', desc: 'Prefers a conversation over the form' },
+            ].map(({ key, desc }) => (
+              <div key={key} className="flex items-center gap-3">
+                <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${REFERRER_STATUS_STYLE[key]}`}>
+                  {REFERRER_STATUS_LABEL[key]}
+                </span>
+                <span className="text-xs text-gray-500">{desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
       </main>
     </div>
   );

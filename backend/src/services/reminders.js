@@ -16,7 +16,7 @@ async function sendPendingReminders() {
       JOIN referral_requests rr ON r.referral_request_id = rr.id
       JOIN users u ON rr.requester_id = u.id
       WHERE
-        r.submitted_at IS NULL
+        r.status IN ('invited', 'viewed')
         AND r.token_expires_at > NOW()
         AND rr.archived_at IS NULL
         AND u.reminder_days IS NOT NULL
@@ -45,4 +45,4 @@ function startReminderCron() {
   console.log('[reminders] cron scheduled — daily at 08:00');
 }
 
-module.exports = { startReminderCron };
+module.exports = { startReminderCron, sendPendingReminders };

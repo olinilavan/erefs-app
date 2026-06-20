@@ -31,6 +31,8 @@ router.post('/', auth, async (req, res) => {
   const { targetRole, referrers, candidateName, candidateEmail, jobId } = req.body;
   const policyError = await checkWorkEmailPolicy(req.user.id, (referrers || []).map(r => r.email));
   if (policyError) return res.status(400).json({ error: policyError });
+  const { rows: [userRow] } = await db.query(`SELECT reminder_days FROM users WHERE id = $1`, [req.user.id]);
+  const reminderDays = userRow?.reminder_days || 0;
   const client = await db.connect();
   try {
     await client.query('BEGIN');
@@ -50,7 +52,7 @@ router.post('/', auth, async (req, res) => {
       );
       const referrer = refResult.rows[0];
       createdReferrers.push(referrer);
-      await sendReferrerInvite(referrer, referralRequest, req.user);
+      await sendReferrerInvite(referrer, referralRequest, req.user, reminderDays);
     }
 
     await client.query('COMMIT');
@@ -68,7 +70,7 @@ router.get('/', auth, async (req, res) => {
   const result = await db.query(
     `SELECT rr.*,
        COUNT(DISTINCT rf.id) AS total_referrers,
-       COUNT(DISTINCT rf.id) FILTER (WHERE rf.submitted_at IS NOT NULL) AS completed_referrers
+       COUNT(DISTINCT rf.id) FILTER (WHERE rf.status = 'completed') AS completed_referrers
      FROM referral_requests rr
      LEFT JOIN referrers rf ON rf.referral_request_id = rr.id
      WHERE rr.requester_id = $1
@@ -84,7 +86,8 @@ router.get('/:id', auth, async (req, res) => {
   const isAdmin = req.user.is_admin;
   const result = await db.query(
     `SELECT rr.*, rf.id AS referrer_id, rf.name AS referrer_name, rf.email AS referrer_email,
-            rf.token, rf.submitted_at, rf.created_at AS referrer_created_at, rep.id AS report_id
+            rf.token, rf.submitted_at, rf.status AS referrer_status, rf.viewed_at,
+            rf.created_at AS referrer_created_at, rep.id AS report_id
      FROM referral_requests rr
      LEFT JOIN referrers rf ON rf.referral_request_id = rr.id
      LEFT JOIN reports rep ON rep.referrer_id = rf.id
@@ -118,7 +121,7 @@ router.post('/:id/referrers', auth, async (req, res) => {
 
   const rrResult = await db.query(`SELECT * FROM referral_requests WHERE id = $1`, [req.params.id]);
   const requester = await db.query(`SELECT * FROM users WHERE id = $1`, [req.user.id]);
-  await sendReferrerInvite(referrer, rrResult.rows[0], requester.rows[0]);
+  await sendReferrerInvite(referrer, rrResult.rows[0], requester.rows[0], requester.rows[0].reminder_days || 0);
 
   res.json(referrer);
 });

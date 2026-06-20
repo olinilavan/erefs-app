@@ -5,13 +5,20 @@ const resend = isDev ? null : new Resend(process.env.RESEND_API_KEY);
 
 const BASE_URL = (process.env.FRONTEND_URL || '').split(',')[0].trim();
 
-async function sendReferrerInvite(referrer, referralRequest, requester) {
+async function sendReferrerInvite(referrer, referralRequest, requester, reminderDays = 0) {
   const formUrl = `${BASE_URL}/ref/${referrer.token}`;
+  const declineUrl = `${formUrl}?action=decline`;
+  const callUrl = `${formUrl}?action=call`;
   const candidateName = referralRequest.candidate_name || requester.name;
+  const reminderNote = reminderDays > 0
+    ? `<p style="color: #555; font-size: 13px;">If you haven't responded, you'll receive a reminder in <strong>${reminderDays} days</strong>.</p>`
+    : '';
 
   if (isDev) {
     console.log(`\n[DEV] Referrer invite for ${referrer.name} <${referrer.email}>`);
-    console.log(`[DEV] Form URL: ${formUrl}\n`);
+    console.log(`[DEV] Form URL: ${formUrl}`);
+    console.log(`[DEV] Decline URL: ${declineUrl}`);
+    console.log(`[DEV] Call URL: ${callUrl}\n`);
     return;
   }
 
@@ -31,6 +38,13 @@ async function sendReferrerInvite(referrer, referralRequest, requester) {
             Complete Reference Form
           </a>
         </p>
+        <p style="text-align: center; color: #555; font-size: 13px; margin-top: 8px;">
+          Not able to help?
+          <a href="${declineUrl}" style="color: #dc2626; text-decoration: underline;">Decline</a>
+          &nbsp;·&nbsp;
+          <a href="${callUrl}" style="color: #7c3aed; text-decoration: underline;">Request a Call Instead</a>
+        </p>
+        ${reminderNote}
         <p style="color: #888; font-size: 12px;">This link expires in 30 days. If you did not expect this email, you can safely ignore it.</p>
       </div>
     `,
@@ -111,8 +125,12 @@ async function sendVerificationEmail(email, token) {
 
 async function sendReminderEmail(referrer, requesterName, targetRole) {
   const formUrl = `${BASE_URL}/ref/${referrer.token}`;
+  const declineUrl = `${formUrl}?action=decline`;
+  const callUrl = `${formUrl}?action=call`;
 
-  console.log(`\n[Reminder URL] ${formUrl} → ${referrer.email}\n`);
+  console.log(`\n[Reminder URL] ${formUrl} → ${referrer.email}`);
+  console.log(`[Reminder Decline URL] ${declineUrl}`);
+  console.log(`[Reminder Call URL] ${callUrl}\n`);
 
   if (isDev) return;
 
@@ -133,7 +151,13 @@ async function sendReminderEmail(referrer, requesterName, targetRole) {
             Complete Reference Form
           </a>
         </p>
-        <p style="color: #888; font-size: 12px;">If you've already completed this or don't wish to participate, you can safely ignore this email.</p>
+        <p style="text-align: center; color: #555; font-size: 13px; margin-top: 8px;">
+          Not able to help?
+          <a href="${declineUrl}" style="color: #dc2626; text-decoration: underline;">Decline</a>
+          &nbsp;·&nbsp;
+          <a href="${callUrl}" style="color: #7c3aed; text-decoration: underline;">Request a Call Instead</a>
+        </p>
+        <p style="color: #888; font-size: 12px; margin-top: 24px;">If you've already completed this, you can safely ignore this email.</p>
       </div>
     `,
   });
