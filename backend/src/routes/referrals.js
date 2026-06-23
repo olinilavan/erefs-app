@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const auth = require('../middleware/auth');
-const { sendReferrerInvite } = require('../services/email');
+const { sendReferrerInvite, sendCandidateProfileInvite } = require('../services/email');
 const { v4: uuidv4 } = require('uuid');
 
 const router = express.Router();
@@ -27,20 +27,44 @@ async function checkWorkEmailPolicy(userId, emails) {
 }
 
 // POST /api/referrals — create a new referral request + send emails to referrers
+//
+// Jobseeker flow stays lightweight: Reference Check only, plus an optional resume link.
+// Employer flow additionally seeds the candidate-token invite (Professional Background
+// Check — currently a placeholder pending the structured education/experience rebuild).
 router.post('/', auth, async (req, res) => {
-  const { targetRole, referrers, candidateName, candidateEmail, jobId } = req.body;
+  const { targetRole, referrers, candidateName, candidateEmail, jobId, candidateLinkedInUrl, resumeUrl } = req.body;
   const policyError = await checkWorkEmailPolicy(req.user.id, (referrers || []).map(r => r.email));
   if (policyError) return res.status(400).json({ error: policyError });
-  const { rows: [userRow] } = await db.query(`SELECT reminder_days FROM users WHERE id = $1`, [req.user.id]);
+  const { rows: [userRow] } = await db.query(
+    `SELECT email, reminder_days, resume_url, share_link_expiry_days FROM users WHERE id = $1`,
+    [req.user.id]
+  );
   const reminderDays = userRow?.reminder_days || 0;
+  const shareExpiryDays = userRow?.share_link_expiry_days || 14;
+  const isEmployer = req.user.role === 'employer';
+
+  // Jobseeker: use the resume link provided on this form, falling back to their saved profile link.
+  const effectiveResumeUrl = isEmployer ? null : (resumeUrl || userRow?.resume_url || null);
+
   const client = await db.connect();
   try {
     await client.query('BEGIN');
 
+    // Professional Background Check candidate invite — employer flow only.
+    let candidateToken = null;
+    if (isEmployer && candidateEmail) {
+      candidateToken = uuidv4();
+    }
+
     const reqResult = await client.query(
-      `INSERT INTO referral_requests (requester_id, requester_role, candidate_name, candidate_email, job_id, target_role)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [req.user.id, req.user.role, candidateName || null, candidateEmail || null, jobId || null, targetRole || null]
+      `INSERT INTO referral_requests
+         (requester_id, requester_role, candidate_name, candidate_email, job_id, target_role,
+          candidate_linkedin_url, resume_url, candidate_token, candidate_token_expires_at, share_token_expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CASE WHEN $9::uuid IS NULL THEN NULL ELSE NOW() + INTERVAL '30 days' END,
+               NOW() + ($10 * INTERVAL '1 day'))
+       RETURNING *`,
+      [req.user.id, req.user.role, candidateName || null, candidateEmail || null, jobId || null, targetRole || null,
+       isEmployer ? (candidateLinkedInUrl || null) : null, effectiveResumeUrl, candidateToken, shareExpiryDays]
     );
     const referralRequest = reqResult.rows[0];
 
@@ -57,12 +81,57 @@ router.post('/', auth, async (req, res) => {
 
     await client.query('COMMIT');
     res.json({ referralRequest, referrers: createdReferrers });
+
+    if (candidateToken) {
+      sendCandidateProfileInvite(referralRequest).catch((err) => {
+        console.error('[sendCandidateProfileInvite failed]', err.message);
+      });
+    }
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
   } finally {
     client.release();
   }
+});
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// GET /api/referrals/share/:shareToken — public, combined view of all completed reports
+// for one referral request. Lets a candidate with multiple referrers share one link
+// instead of N separate per-referrer report links.
+router.get('/share/:shareToken', async (req, res) => {
+  if (!UUID_RE.test(req.params.shareToken)) return res.status(404).json({ error: 'Invalid link' });
+
+  const rrResult = await db.query(
+    `SELECT rr.id, rr.candidate_name, rr.target_role, rr.share_token_expires_at,
+            CASE WHEN rr.requester_role = 'jobseeker' THEN COALESCE(u.resume_url, rr.resume_url) ELSE NULL END AS resume_url
+     FROM referral_requests rr
+     LEFT JOIN users u ON u.id = rr.requester_id
+     WHERE rr.share_token = $1`,
+    [req.params.shareToken]
+  );
+  if (!rrResult.rows.length) return res.status(404).json({ error: 'Invalid link' });
+  const rr = rrResult.rows[0];
+  if (rr.share_token_expires_at && new Date(rr.share_token_expires_at) < new Date()) {
+    return res.status(410).json({ error: 'expired' });
+  }
+
+  const reportsResult = await db.query(
+    `SELECT rep.llm_output_json, rep.created_at, rf.name AS referrer_name
+     FROM reports rep
+     JOIN referrers rf ON rf.id = rep.referrer_id
+     WHERE rf.referral_request_id = $1 AND rf.status = 'completed'
+     ORDER BY rep.created_at ASC`,
+    [rr.id]
+  );
+
+  res.json({
+    candidate_name: rr.candidate_name,
+    target_role: rr.target_role,
+    resume_url: rr.resume_url,
+    reports: reportsResult.rows,
+  });
 });
 
 // GET /api/referrals — list requester's referral requests
@@ -87,8 +156,10 @@ router.get('/:id', auth, async (req, res) => {
   const result = await db.query(
     `SELECT rr.*, rf.id AS referrer_id, rf.name AS referrer_name, rf.email AS referrer_email,
             rf.token, rf.submitted_at, rf.status AS referrer_status, rf.viewed_at,
-            rf.created_at AS referrer_created_at, rep.id AS report_id
+            rf.created_at AS referrer_created_at, rep.id AS report_id,
+            CASE WHEN rr.requester_role = 'jobseeker' THEN COALESCE(u.resume_url, rr.resume_url) ELSE NULL END AS resume_url
      FROM referral_requests rr
+     LEFT JOIN users u ON u.id = rr.requester_id
      LEFT JOIN referrers rf ON rf.referral_request_id = rr.id
      LEFT JOIN reports rep ON rep.referrer_id = rf.id
      WHERE rr.id = $1 AND ($2 OR rr.requester_id = $3)

@@ -21,9 +21,17 @@ export default function AccountDropdown() {
         onClick={() => setOpen(o => !o)}
         className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition"
       >
-        <div className="w-7 h-7 rounded-full bg-teal-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
-          {user?.name?.charAt(0).toUpperCase()}
-        </div>
+        {user?.profile_photo_url ? (
+          <img
+            src={user.profile_photo_url}
+            alt={user.name}
+            className="w-7 h-7 rounded-full object-cover flex-shrink-0 border border-gray-200"
+          />
+        ) : (
+          <div className="w-7 h-7 rounded-full bg-teal-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+            {user?.name?.charAt(0).toUpperCase()}
+          </div>
+        )}
         <div className="text-left hidden sm:block">
           <div className="text-sm font-medium text-gray-700 leading-tight">
             {user?.role === 'employer' && user?.company ? user.company : user?.name}

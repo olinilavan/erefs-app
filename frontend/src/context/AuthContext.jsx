@@ -37,6 +37,14 @@ export function AuthProvider({ children }) {
     return user;
   };
 
+  // Used by LinkedIn (and any future OAuth) redirect-based flows.
+  // The backend has already issued the JWT; we just store it.
+  const loginWithToken = (token, userData) => {
+    localStorage.setItem('erefs_token', token);
+    localStorage.setItem('erefs_user', JSON.stringify(userData));
+    setUser(userData);
+  };
+
   const logout = () => {
     localStorage.removeItem('erefs_token');
     localStorage.removeItem('erefs_user');
@@ -44,7 +52,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, googleLogin, logout }}>
+    <AuthContext.Provider value={{ user, login, register, googleLogin, loginWithToken, logout }}>
       {children}
     </AuthContext.Provider>
   );

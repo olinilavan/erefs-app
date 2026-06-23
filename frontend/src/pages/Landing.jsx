@@ -30,6 +30,7 @@ export default function Landing() {
       <nav className="flex justify-between items-center px-8 py-5 max-w-6xl mx-auto border-b border-gray-100">
         <Logo to="/" height={100} />
         <div className="flex gap-3 items-center">
+          <Link to="/talent" className="px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium">Available Talent Pool</Link>
           <Link to="/login" className="px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium">Log in</Link>
           <Link to="/register" className="px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700 transition">Get Started Free</Link>
         </div>

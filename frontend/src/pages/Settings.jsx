@@ -40,6 +40,12 @@ export default function Settings() {
       require_work_email: form.require_work_email,
       reminder_days: form.reminder_days,
       wants_custom_questions: form.wants_custom_questions,
+      share_link_expiry_days: form.share_link_expiry_days,
+      publicly_discoverable: form.publicly_discoverable,
+      allow_employer_contact: form.allow_employer_contact,
+      years_experience: form.years_experience,
+      location: form.location,
+      availability: form.availability,
     });
     setSaving(false);
     setSaved(true);
@@ -87,12 +93,20 @@ export default function Settings() {
               </div>
             )}
             {user?.role === 'jobseeker' && (
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Headline</label>
-                <input value={form.headline || ''} onChange={e => setForm({ ...form, headline: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
-                  placeholder="e.g. Senior Software Engineer" />
-              </div>
+              <>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Headline</label>
+                  <input value={form.headline || ''} onChange={e => setForm({ ...form, headline: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    placeholder="e.g. Senior Software Engineer" />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Your VM ID</label>
+                  <input value={form.vm_id || ''} disabled
+                    className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-gray-50 text-gray-400 cursor-not-allowed font-mono" />
+                  <p className="text-xs text-gray-400 mt-1">A non-identifying reference code you can share with recruiters instead of your name.</p>
+                </div>
+              </>
             )}
           </div>
 
@@ -141,6 +155,80 @@ export default function Settings() {
                     <span className="text-sm text-gray-500">after invite is sent</span>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Talent directory — jobseeker only */}
+          {user?.role === 'jobseeker' && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+              <h2 className="font-semibold text-gray-800">Visibility to Employers</h2>
+
+              <Toggle
+                enabled={form.publicly_discoverable}
+                onChange={v => setForm({ ...form, publicly_discoverable: v, allow_employer_contact: v ? form.allow_employer_contact : false })}
+                label="Show my profile publicly"
+                description="Logged-in employers can see your headline and whether you have a completed reference — never your name or email."
+              />
+
+              {form.publicly_discoverable && (
+                <>
+                  <Toggle
+                    enabled={form.allow_employer_contact}
+                    onChange={v => setForm({ ...form, allow_employer_contact: v })}
+                    label="Allow employers to reach out"
+                    description="Interested employers submit their contact info to VouchMetrics, and we email it to you. Your contact info is never shared with them unless you respond."
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Years of experience</label>
+                      <input type="number" min="0" value={form.years_experience ?? ''}
+                        onChange={e => setForm({ ...form, years_experience: e.target.value ? parseInt(e.target.value) : null })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+                        placeholder="e.g. 6" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Location</label>
+                      <input value={form.location || ''} onChange={e => setForm({ ...form, location: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+                        placeholder="e.g. Austin, TX" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Availability</label>
+                    <select value={form.availability || ''}
+                      onChange={e => setForm({ ...form, availability: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+                      <option value="">Select...</option>
+                      <option value="Immediately">Immediately</option>
+                      <option value="Within 2 weeks">Within 2 weeks</option>
+                      <option value="Within 1 month">Within 1 month</option>
+                      <option value="Not actively looking">Not actively looking</option>
+                    </select>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Reference preferences — jobseeker only */}
+          {user?.role === 'jobseeker' && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-3">
+              <h2 className="font-semibold text-gray-800">Share Link Expiration</h2>
+              <p className="text-xs text-gray-400">
+                Report share links (single and combined) stop working after this period. Generate a new request to get a fresh link.
+              </p>
+              <div className="flex items-center gap-3">
+                <select value={form.share_link_expiry_days || 14}
+                  onChange={e => setForm({ ...form, share_link_expiry_days: parseInt(e.target.value) })}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+                  {[7, 14, 30, 60, 90].map(d => (
+                    <option key={d} value={d}>{d} days</option>
+                  ))}
+                </select>
+                <span className="text-sm text-gray-500">from when the link is generated</span>
               </div>
             </div>
           )}

@@ -2,6 +2,7 @@ import Logo from '../components/Logo';
 import { Link } from 'react-router-dom';
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts';
 import SAMPLE from '../sampleReportData';
+import { normalizeUrl } from '../utils/url';
 
 export default function SampleReport() {
   const data = SAMPLE.llm_output_json;
@@ -47,6 +48,13 @@ export default function SampleReport() {
             <h2 className="font-semibold text-gray-800 mb-2">Executive Summary</h2>
             <p className="text-gray-700 leading-relaxed">{data.executiveSummary}</p>
           </div>
+
+          {SAMPLE.resume_url && (
+            <a href={normalizeUrl(SAMPLE.resume_url)} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm text-teal-600 hover:underline mt-4">
+              📄 View Resume →
+            </a>
+          )}
         </div>
 
         {/* Radar chart */}

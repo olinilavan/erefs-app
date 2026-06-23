@@ -4,6 +4,7 @@ const SAMPLE_REPORT = {
   candidate_name: 'Alex Chen',
   created_at: new Date().toISOString(),
   share_token: null,
+  resume_url: 'https://drive.google.com/file/d/sample-resume',
   llm_output_json: {
     executiveSummary:
       'Alex consistently demonstrates exceptional technical leadership and a collaborative spirit that elevates everyone around them. Across all feedback, themes of proactive ownership, clear communication, and mentorship of junior developers stood out strongly. Referees unanimously described Alex as someone who thrives under pressure and delivers with quality.',

@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api';
 import { isPersonalEmail } from '../utils/emailValidation';
+import { normalizeUrl } from '../utils/url';
 
 export default function NewReferral() {
   const [candidateName, setCandidateName] = useState('');
   const [candidateEmail, setCandidateEmail] = useState('');
+  const [resumeUrl, setResumeUrl] = useState('');
   const [targetRole, setTargetRole] = useState('');
   const [referrers, setReferrers] = useState([{ name: '', email: '' }]);
   const [error, setError] = useState('');
@@ -14,7 +16,10 @@ export default function NewReferral() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    api.get('/api/settings').then(r => setRequireWorkEmail(r.data.require_work_email));
+    api.get('/api/settings').then(r => {
+      setRequireWorkEmail(r.data.require_work_email);
+      if (r.data.resume_url) setResumeUrl(r.data.resume_url);
+    });
   }, []);
 
   const addReferrer = () => setReferrers([...referrers, { name: '', email: '' }]);
@@ -37,7 +42,7 @@ export default function NewReferral() {
     }
     setLoading(true);
     try {
-      const res = await api.post('/api/referrals', { candidateName, candidateEmail, targetRole, referrers });
+      const res = await api.post('/api/referrals', { candidateName, candidateEmail, targetRole, referrers, resumeUrl: resumeUrl || undefined });
       navigate(`/references/${res.data.referralRequest.id}`);
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong');
@@ -80,6 +85,15 @@ export default function NewReferral() {
               <label className="block text-sm text-gray-600 mb-1">Target Role <span className="text-gray-400 font-normal">(optional)</span></label>
               <input type="text" placeholder="e.g. Senior Product Manager at Stripe"
                 value={targetRole} onChange={e => setTargetRole(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                Resume Link <span className="text-gray-400 font-normal">(optional — shown alongside your report)</span>
+              </label>
+              <input type="url" placeholder="https://drive.google.com/..."
+                value={resumeUrl} onChange={e => setResumeUrl(e.target.value)}
+                onBlur={e => setResumeUrl(normalizeUrl(e.target.value))}
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
             </div>
           </div>

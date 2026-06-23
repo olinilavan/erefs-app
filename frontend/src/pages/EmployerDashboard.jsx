@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import AccountDropdown from '../components/AccountDropdown';
+import { normalizeUrl } from '../utils/url';
 
 const STATUS_STYLE = {
   completed: 'bg-green-100 text-green-700',
@@ -38,7 +39,7 @@ export default function EmployerDashboard() {
   const [showNewRequest, setShowNewRequest] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState({
-    candidateName: '', candidateEmail: '', targetRole: '',
+    candidateName: '', candidateEmail: '', targetRole: '', candidateLinkedInUrl: '',
     referrers: [{ name: '', email: '' }],
   });
 
@@ -63,8 +64,9 @@ export default function EmployerDashboard() {
       candidateEmail: form.candidateEmail,
       targetRole: form.targetRole,
       referrers: form.referrers,
+      candidateLinkedInUrl: form.candidateLinkedInUrl || undefined,
     });
-    setForm({ candidateName: '', candidateEmail: '', targetRole: '', referrers: [{ name: '', email: '' }] });
+    setForm({ candidateName: '', candidateEmail: '', targetRole: '', candidateLinkedInUrl: '', referrers: [{ name: '', email: '' }] });
     setShowNewRequest(false);
     load(false);
   };
@@ -97,7 +99,12 @@ export default function EmployerDashboard() {
 
       <nav className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center">
         <Logo to="/employer/dashboard" />
-        <AccountDropdown />
+        <div className="flex items-center gap-5">
+          <Link to="/employer/talent" className="text-sm text-gray-600 hover:text-teal-600 font-medium">
+            🔍 Talent Directory
+          </Link>
+          <AccountDropdown />
+        </div>
       </nav>
 
       <main className="max-w-5xl mx-auto px-8 py-10">
@@ -130,6 +137,18 @@ export default function EmployerDashboard() {
               <input type="text" placeholder="Role (e.g. Senior Engineer)" value={form.targetRole}
                 onChange={e => setForm({ ...form, targetRole: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+              <div className="flex items-center gap-2">
+                <input type="url" placeholder="Candidate LinkedIn URL (optional — shown as a link in the report)"
+                  value={form.candidateLinkedInUrl}
+                  onChange={e => setForm({ ...form, candidateLinkedInUrl: e.target.value })}
+                  onBlur={e => setForm({ ...form, candidateLinkedInUrl: normalizeUrl(e.target.value) })}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+              </div>
+              {form.candidateEmail && (
+                <p className="text-xs text-gray-400">
+                  We'll email the candidate a link to add their own professional summary to the report (optional, in their own words).
+                </p>
+              )}
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium text-gray-700">Referrers</span>

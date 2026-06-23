@@ -68,10 +68,22 @@ Return ONLY valid JSON with this structure:
   const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
   const json = JSON.parse(cleaned);
 
+  const { rows: [requesterRow] } = await db.query(
+    `SELECT u.share_link_expiry_days
+     FROM referrers rf
+     JOIN referral_requests rr ON rr.id = rf.referral_request_id
+     JOIN users u ON u.id = rr.requester_id
+     WHERE rf.id = $1`,
+    [referrerId]
+  );
+  const expiryDays = requesterRow?.share_link_expiry_days || 14;
+
   await db.query(
-    `INSERT INTO reports (referrer_id, llm_output_json) VALUES ($1, $2)
-     ON CONFLICT (referrer_id) DO UPDATE SET llm_output_json = $2, created_at = NOW()`,
-    [referrerId, JSON.stringify(json)]
+    `INSERT INTO reports (referrer_id, llm_output_json, share_token_expires_at)
+     VALUES ($1, $2, NOW() + ($3 * INTERVAL '1 day'))
+     ON CONFLICT (referrer_id) DO UPDATE
+       SET llm_output_json = $2, created_at = NOW(), share_token_expires_at = NOW() + ($3 * INTERVAL '1 day')`,
+    [referrerId, JSON.stringify(json), expiryDays]
   );
 
   return json;

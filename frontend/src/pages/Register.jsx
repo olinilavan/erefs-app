@@ -1,4 +1,5 @@
 import Logo from '../components/Logo';
+import LinkedInIcon from '../components/LinkedInIcon';
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
@@ -145,8 +146,19 @@ export default function Register() {
           <div className="flex-1 h-px bg-gray-200" />
         </div>
 
-        <div className="flex justify-center">
-          <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => setError('Google sign-in failed')} width="368" />
+        <div className="space-y-3">
+          <div className="flex justify-center">
+            <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => setError('Google sign-in failed')} width="368" />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => { window.location.href = '/api/auth/linkedin'; }}
+            className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+          >
+            <LinkedInIcon />
+            Sign up with LinkedIn
+          </button>
         </div>
 
         <p className="mt-4 text-center text-gray-500 text-sm">

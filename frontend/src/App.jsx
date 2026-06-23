@@ -10,8 +10,12 @@ import NewReferral from './pages/NewReferral';
 import ReferralDetail from './pages/ReferralDetail';
 import Report from './pages/Report';
 import PublicReport from './pages/PublicReport';
+import CombinedReport from './pages/CombinedReport';
 import ReferrerForm from './pages/ReferrerForm';
+import CandidateProfile from './pages/CandidateProfile';
 import EmployerDashboard from './pages/EmployerDashboard';
+import TalentDirectory from './pages/TalentDirectory';
+import PublicTalentDirectory from './pages/PublicTalentDirectory';
 import SampleReport from './pages/SampleReport';
 import Settings from './pages/Settings';
 import Terms from './pages/Terms';
@@ -20,6 +24,8 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import VerifyEmail from './pages/VerifyEmail';
 import GoogleRoleSelect from './pages/GoogleRoleSelect';
+import LinkedInSuccess from './pages/LinkedInSuccess';
+import LinkedInRoleSelect from './pages/LinkedInRoleSelect';
 
 function PrivateRoute({ children, role, adminOnly }) {
   const { user } = useAuth();
@@ -40,11 +46,16 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/ref/:token" element={<ReferrerForm />} />
+        <Route path="/candidate/:token" element={<CandidateProfile />} />
         <Route path="/report/share/:shareToken" element={<PublicReport />} />
+        <Route path="/referrals/share/:shareToken" element={<CombinedReport />} />
         <Route path="/sample-report" element={<SampleReport />} />
+        <Route path="/talent" element={<PublicTalentDirectory />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/verify-email/:token" element={<VerifyEmail />} />
-        <Route path="/auth/google/role" element={<GoogleRoleSelect />} />
+        <Route path="/auth/google/role"     element={<GoogleRoleSelect />} />
+        <Route path="/auth/linkedin/success" element={<LinkedInSuccess />} />
+        <Route path="/auth/linkedin/role"    element={<LinkedInRoleSelect />} />
 
         {/* Job Seeker */}
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
@@ -55,6 +66,7 @@ export default function App() {
 
         {/* Employer */}
         <Route path="/employer/dashboard" element={<PrivateRoute role="employer"><EmployerDashboard /></PrivateRoute>} />
+        <Route path="/employer/talent" element={<PrivateRoute role="employer"><TalentDirectory /></PrivateRoute>} />
 
         {/* Admin */}
         <Route path="/admin" element={<PrivateRoute adminOnly><AdminDashboard /></PrivateRoute>} />

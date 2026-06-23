@@ -1,13 +1,15 @@
 import Logo from '../components/Logo';
+import LinkedInIcon from '../components/LinkedInIcon';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 
 export default function Login() {
+  const [params] = useSearchParams();
   const [form, setForm] = useState({ email: '', password: '' });
-  const [error, setError] = useState('');
+  const [error, setError] = useState(params.get('error') || '');
   const [unverified, setUnverified] = useState(false);
   const [resent, setResent] = useState(false);
   const { login, googleLogin } = useAuth();
@@ -99,8 +101,19 @@ export default function Login() {
           <div className="flex-1 h-px bg-gray-200" />
         </div>
 
-        <div className="flex justify-center">
-          <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => setError('Google sign-in failed')} width="368" />
+        <div className="space-y-3">
+          <div className="flex justify-center">
+            <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => setError('Google sign-in failed')} width="368" />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => { window.location.href = '/api/auth/linkedin'; }}
+            className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+          >
+            <LinkedInIcon />
+            Sign in with LinkedIn
+          </button>
         </div>
 
         <p className="mt-4 text-center text-gray-500 text-sm">

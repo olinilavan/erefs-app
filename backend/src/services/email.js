@@ -169,6 +169,78 @@ async function sendReminderEmail(referrer, requesterName, targetRole) {
   console.log('[reminder email sent]', data?.id, '→', referrer.email);
 }
 
+async function sendCandidateProfileInvite(referralRequest) {
+  const profileUrl = `${BASE_URL}/candidate/${referralRequest.candidate_token}`;
+  const name = referralRequest.candidate_name || 'there';
+
+  if (isDev) {
+    console.log(`\n[DEV] Candidate profile invite for ${name} <${referralRequest.candidate_email}>`);
+    console.log(`[DEV] Profile URL: ${profileUrl}\n`);
+    return;
+  }
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: referralRequest.candidate_email,
+    subject: 'Add your professional summary to your reference report',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a2e;">Tell us about your professional background</h2>
+        <p>Hi ${name},</p>
+        <p>A reference report is being prepared for you on <strong>VouchMetrics</strong>. You can optionally add a short summary of your own experience, skills, and background — in your own words — to enrich your report with a Professional Profile section.</p>
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${profileUrl}" style="background: #0f766e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+            Add My Professional Summary
+          </a>
+        </p>
+        <p style="color: #888; font-size: 12px;">This is entirely optional and only uses information you choose to share. This link expires in 30 days.</p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    console.error('[candidate profile invite failed]', error);
+    throw new Error(error.message);
+  }
+  console.log('[candidate profile invite sent]', data?.id, '→', referralRequest.candidate_email);
+}
+
+async function sendEmployerContactRequest(jobseeker, employer, phone, message) {
+  if (isDev) {
+    console.log(`\n[DEV] Employer contact request for ${jobseeker.name} <${jobseeker.email}>`);
+    console.log(`[DEV] From: ${employer.name} <${employer.email}> ${phone}`);
+    if (message) console.log(`[DEV] Message: ${message}`);
+    console.log('');
+    return;
+  }
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: jobseeker.email,
+    subject: `${employer.name} would like to connect with you on VouchMetrics`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a2e;">An employer is interested in connecting</h2>
+        <p>Hi ${jobseeker.name},</p>
+        <p>You opted in to be discoverable on VouchMetrics, and <strong>${employer.name}</strong>${employer.company ? ` from <strong>${employer.company}</strong>` : ''} would like to get in touch.</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 24px 0; background: #f9fafb; border-radius: 8px;">
+          <tr><td style="padding: 12px 16px; font-size: 14px; color: #555;">Name</td><td style="padding: 12px 16px; font-size: 14px; font-weight: bold;">${employer.name}</td></tr>
+          <tr style="border-top: 1px solid #e5e7eb;"><td style="padding: 12px 16px; font-size: 14px; color: #555;">Email</td><td style="padding: 12px 16px; font-size: 14px; font-weight: bold;">${employer.email}</td></tr>
+          <tr style="border-top: 1px solid #e5e7eb;"><td style="padding: 12px 16px; font-size: 14px; color: #555;">Phone</td><td style="padding: 12px 16px; font-size: 14px; font-weight: bold;">${phone}</td></tr>
+        </table>
+        ${message ? `<p style="background: #f0fdfa; border-radius: 8px; padding: 16px; color: #134e4a;">"${message}"</p>` : ''}
+        <p style="color: #888; font-size: 12px; margin-top: 24px;">Your contact details were not shared with ${employer.name} — only theirs were shared with you. Reach out directly if you're interested. You can turn off employer contact anytime in your VouchMetrics settings.</p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    console.error('[employer contact request email failed]', error);
+    throw new Error(error.message);
+  }
+  console.log('[employer contact request sent]', data?.id, '→', jobseeker.email);
+}
+
 async function sendAdminReminderReport(stats) {
   const recipients = (process.env.ADMIN_REPORT_EMAILS || '')
     .split(',').map(e => e.trim()).filter(Boolean);
@@ -243,4 +315,4 @@ async function sendAdminReminderReport(stats) {
   }
 }
 
-module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendAdminReminderReport };
+module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendCandidateProfileInvite, sendEmployerContactRequest, sendAdminReminderReport };

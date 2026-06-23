@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { sendEmployerContactRequest } = require('../services/email');
 
 const router = express.Router();
 
@@ -77,6 +78,77 @@ router.post('/jobs', auth, async (req, res) => {
     [req.user.id, title, description]
   );
   res.json(result.rows[0]);
+});
+
+const TALENT_PAGE_SIZE = 20;
+
+// GET /api/employer/talent?page=1 — anonymized, paginated directory of jobseekers open to employer contact
+router.get('/talent', auth, async (req, res) => {
+  if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const offset = (page - 1) * TALENT_PAGE_SIZE;
+
+  const result = await db.query(
+    `SELECT u.vm_id, u.headline, u.years_experience, u.location, u.availability,
+       EXISTS (
+         SELECT 1 FROM reports rep
+         JOIN referrers rf ON rf.id = rep.referrer_id
+         JOIN referral_requests rr ON rr.id = rf.referral_request_id
+         WHERE rr.requester_id = u.id
+       ) AS reference_complete,
+       EXISTS (
+         SELECT 1 FROM contact_requests cr WHERE cr.employer_id = $1 AND cr.jobseeker_id = u.id
+       ) AS already_contacted,
+       COUNT(*) OVER() AS total_count
+     FROM users u
+     WHERE u.role = 'jobseeker' AND u.publicly_discoverable = true AND u.allow_employer_contact = true
+       AND u.headline IS NOT NULL AND u.headline != ''
+     ORDER BY u.created_at DESC
+     LIMIT $2 OFFSET $3`,
+    [req.user.id, TALENT_PAGE_SIZE, offset]
+  );
+
+  const totalCount = result.rows[0]?.total_count ? parseInt(result.rows[0].total_count) : 0;
+  const candidates = result.rows.map(({ total_count, ...rest }) => rest);
+
+  res.json({
+    candidates,
+    page,
+    totalPages: Math.max(1, Math.ceil(totalCount / TALENT_PAGE_SIZE)),
+    totalCount,
+  });
+});
+
+// POST /api/employer/talent/:vmId/contact — brokered outreach (employer's contact info emailed to jobseeker)
+// Keyed by VM ID (the only identifier ever shown publicly), not the internal user id.
+router.post('/talent/:vmId/contact', auth, async (req, res) => {
+  if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const { phone, message } = req.body;
+  if (!phone) return res.status(400).json({ error: 'Phone number is required' });
+
+  const jobseekerResult = await db.query(
+    `SELECT id, name, email FROM users WHERE vm_id = $1 AND role = 'jobseeker' AND allow_employer_contact = true`,
+    [req.params.vmId]
+  );
+  if (!jobseekerResult.rows.length) return res.status(404).json({ error: 'Not found' });
+  const jobseeker = jobseekerResult.rows[0];
+
+  const employerResult = await db.query(`SELECT name, email, company FROM users WHERE id = $1`, [req.user.id]);
+  const employer = employerResult.rows[0];
+
+  try {
+    await db.query(
+      `INSERT INTO contact_requests (employer_id, jobseeker_id, employer_name, employer_email, employer_phone, message)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [req.user.id, jobseeker.id, employer.name, employer.email, phone, message || null]
+    );
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ error: 'You have already reached out to this candidate' });
+    throw err;
+  }
+
+  await sendEmployerContactRequest(jobseeker, employer, phone, message);
+  res.json({ success: true });
 });
 
 module.exports = router;

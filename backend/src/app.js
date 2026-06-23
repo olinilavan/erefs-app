@@ -4,8 +4,10 @@ const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const referralRoutes = require('./routes/referrals');
 const referrerRoutes = require('./routes/referrers');
+const candidateProfileRoutes = require('./routes/candidateProfile');
 const reportRoutes = require('./routes/reports');
 const employerRoutes = require('./routes/employer');
+const talentRoutes = require('./routes/talent');
 const settingsRoutes = require('./routes/settings');
 const adminRoutes = require('./routes/admin');
 
@@ -30,8 +32,10 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/referrers', referrerRoutes);
+app.use('/api/candidate-profile', candidateProfileRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/employer', employerRoutes);
+app.use('/api/talent', talentRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/admin', adminRoutes);
 

@@ -62,12 +62,37 @@ npm run dev
 | `FRONTEND_URL` | `http://localhost:5173` in dev (comma-separated for multiple origins) |
 | `PORT` | Defaults to 4000 |
 | `GOOGLE_CLIENT_ID` | OAuth 2.0 client ID from Google Cloud Console |
+| `BACKEND_URL` | `http://localhost:4000` in dev — used to build the LinkedIn callback URL |
+| `LINKEDIN_CLIENT_ID` | From LinkedIn Developer Portal |
+| `LINKEDIN_CLIENT_SECRET` | From LinkedIn Developer Portal |
 
 ### Setting up Google Sign-In
 1. Go to [Google Cloud Console](https://console.cloud.google.com) → APIs & Services → Credentials
 2. Create an OAuth 2.0 Client ID (Web application)
 3. Add `http://localhost:5173` to Authorized JavaScript Origins
 4. Copy the Client ID into `GOOGLE_CLIENT_ID` in backend `.env` and `VITE_GOOGLE_CLIENT_ID` in frontend `.env`
+
+### Setting up LinkedIn Sign-In
+
+LinkedIn uses a server-side redirect flow (unlike Google's client-side credential). The callback goes to the **backend**.
+
+1. Go to [LinkedIn Developer Portal](https://www.linkedin.com/developers/apps) → Create app
+2. Under **Products**, add: **"Sign In with LinkedIn using OpenID Connect"**
+3. Under **Auth** tab → **Authorized redirect URLs for your app**, add:
+   - Dev: `http://localhost:4000/api/auth/linkedin/callback`
+   - Prod: `https://your-api.example.com/api/auth/linkedin/callback`
+4. Copy **Client ID** → `LINKEDIN_CLIENT_ID` in backend `.env`
+5. Copy **Client Secret** → `LINKEDIN_CLIENT_SECRET` in backend `.env`
+
+**What LinkedIn provides via standard Sign-In (OpenID Connect):**
+- ✅ Name, email address, profile photo
+- ❌ Work history & positions — requires [LinkedIn Partner Programme](https://business.linkedin.com/marketing-solutions/marketing-partners) (restricted, application required)
+- ❌ Connections / network data — not available via any public API
+
+**To run the migration:**
+```bash
+psql $DATABASE_URL -f backend/src/db/migrations/011_linkedin_oauth.sql
+```
 
 ## Project Structure
 
