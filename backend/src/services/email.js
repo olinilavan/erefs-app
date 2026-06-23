@@ -206,10 +206,14 @@ async function sendCandidateProfileInvite(referralRequest) {
 }
 
 async function sendEmployerContactRequest(jobseeker, employer, phone, message) {
+  const adminCc = (process.env.ADMIN_REPORT_EMAILS || '')
+    .split(',').map(e => e.trim()).filter(Boolean);
+
   if (isDev) {
     console.log(`\n[DEV] Employer contact request for ${jobseeker.name} <${jobseeker.email}>`);
     console.log(`[DEV] From: ${employer.name} <${employer.email}> ${phone}`);
     if (message) console.log(`[DEV] Message: ${message}`);
+    if (adminCc.length) console.log(`[DEV] CC: ${adminCc.join(', ')}`);
     console.log('');
     return;
   }
@@ -217,6 +221,7 @@ async function sendEmployerContactRequest(jobseeker, employer, phone, message) {
   const { data, error } = await resend.emails.send({
     from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
     to: jobseeker.email,
+    cc: adminCc.length ? adminCc : undefined,
     subject: `${employer.name} would like to connect with you on VouchMetrics`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -230,6 +235,7 @@ async function sendEmployerContactRequest(jobseeker, employer, phone, message) {
         </table>
         ${message ? `<p style="background: #f0fdfa; border-radius: 8px; padding: 16px; color: #134e4a;">"${message}"</p>` : ''}
         <p style="color: #888; font-size: 12px; margin-top: 24px;">Your contact details were not shared with ${employer.name} — only theirs were shared with you. Reach out directly if you're interested. You can turn off employer contact anytime in your VouchMetrics settings.</p>
+        <p style="color: #888; font-size: 12px;">The VouchMetrics team is copied on this email — reply-all if you have any questions, run into an issue with reaching this employer.</p>
       </div>
     `,
   });
