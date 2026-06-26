@@ -247,6 +247,51 @@ async function sendEmployerContactRequest(jobseeker, employer, phone, message) {
   console.log('[employer contact request sent]', data?.id, '→', jobseeker.email);
 }
 
+async function sendNewApplicantNotification(employer, applicant, job, message) {
+  const adminCc = (process.env.ADMIN_REPORT_EMAILS || '')
+    .split(',').map(e => e.trim()).filter(Boolean);
+
+  if (isDev) {
+    console.log(`\n[DEV] New applicant for "${job.title}" — ${applicant.name} <${applicant.email}>`);
+    if (applicant.resume_url) console.log(`[DEV] Resume: ${applicant.resume_url}`);
+    if (message) console.log(`[DEV] Message: ${message}`);
+    if (adminCc.length) console.log(`[DEV] CC: ${adminCc.join(', ')}`);
+    console.log('');
+    return;
+  }
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: employer.email,
+    cc: adminCc.length ? adminCc : undefined,
+    subject: `New applicant for ${job.title}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a2e;">You have a new applicant</h2>
+        <p>Hi ${employer.name},</p>
+        <p><strong>${applicant.name}</strong> applied to your posting for <strong>${job.title}</strong> on VouchMetrics.</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 24px 0; background: #f9fafb; border-radius: 8px;">
+          <tr><td style="padding: 12px 16px; font-size: 14px; color: #555;">Name</td><td style="padding: 12px 16px; font-size: 14px; font-weight: bold;">${applicant.name}</td></tr>
+          <tr style="border-top: 1px solid #e5e7eb;"><td style="padding: 12px 16px; font-size: 14px; color: #555;">Email</td><td style="padding: 12px 16px; font-size: 14px; font-weight: bold;">${applicant.email}</td></tr>
+          ${applicant.resume_url ? `<tr style="border-top: 1px solid #e5e7eb;"><td style="padding: 12px 16px; font-size: 14px; color: #555;">Resume</td><td style="padding: 12px 16px; font-size: 14px;"><a href="${applicant.resume_url}" style="color: #0f766e;">View Resume</a></td></tr>` : ''}
+        </table>
+        ${message ? `<p style="background: #f0fdfa; border-radius: 8px; padding: 16px; color: #134e4a;">"${message}"</p>` : ''}
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${BASE_URL}/employer/jobs" style="background: #0f766e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+            View All Applicants
+          </a>
+        </p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    console.error('[new applicant notification failed]', error);
+    throw new Error(error.message);
+  }
+  console.log('[new applicant notification sent]', data?.id, '→', employer.email);
+}
+
 async function sendAdminReminderReport(stats) {
   const recipients = (process.env.ADMIN_REPORT_EMAILS || '')
     .split(',').map(e => e.trim()).filter(Boolean);
@@ -321,4 +366,4 @@ async function sendAdminReminderReport(stats) {
   }
 }
 
-module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendCandidateProfileInvite, sendEmployerContactRequest, sendAdminReminderReport };
+module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendCandidateProfileInvite, sendEmployerContactRequest, sendNewApplicantNotification, sendAdminReminderReport };

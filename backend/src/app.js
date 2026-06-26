@@ -8,6 +8,7 @@ const candidateProfileRoutes = require('./routes/candidateProfile');
 const reportRoutes = require('./routes/reports');
 const employerRoutes = require('./routes/employer');
 const talentRoutes = require('./routes/talent');
+const jobsRoutes = require('./routes/jobs');
 const settingsRoutes = require('./routes/settings');
 const adminRoutes = require('./routes/admin');
 
@@ -36,6 +37,7 @@ app.use('/api/candidate-profile', candidateProfileRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/employer', employerRoutes);
 app.use('/api/talent', talentRoutes);
+app.use('/api/jobs', jobsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/admin', adminRoutes);
 

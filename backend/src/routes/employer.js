@@ -59,11 +59,16 @@ router.delete('/candidates/:id', auth, async (req, res) => {
   res.json({ success: true });
 });
 
-// GET /api/employer/jobs
+// GET /api/employer/jobs — employer's own postings, with applicant counts
 router.get('/jobs', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
   const result = await db.query(
-    `SELECT * FROM jobs WHERE employer_id = $1 ORDER BY created_at DESC`,
+    `SELECT j.*, COUNT(ja.id) AS applicant_count
+     FROM jobs j
+     LEFT JOIN job_applications ja ON ja.job_id = j.id
+     WHERE j.employer_id = $1
+     GROUP BY j.id
+     ORDER BY j.created_at DESC`,
     [req.user.id]
   );
   res.json(result.rows);
@@ -72,12 +77,60 @@ router.get('/jobs', auth, async (req, res) => {
 // POST /api/employer/jobs
 router.post('/jobs', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
-  const { title, description } = req.body;
+  const { title, description, location, workRequirement, isPublic, expiresAt } = req.body;
+  if (!title) return res.status(400).json({ error: 'Title is required' });
   const result = await db.query(
-    `INSERT INTO jobs (employer_id, title, description) VALUES ($1, $2, $3) RETURNING *`,
-    [req.user.id, title, description]
+    `INSERT INTO jobs (employer_id, title, description, location, work_requirement, is_public, expires_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [req.user.id, title, description || null, location || null, workRequirement || null, !!isPublic, expiresAt || null]
   );
   res.json(result.rows[0]);
+});
+
+// PATCH /api/employer/jobs/:id — edit a posting (including toggling is_public, expiry, or closing it)
+router.patch('/jobs/:id', auth, async (req, res) => {
+  if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const { title, description, location, workRequirement, isPublic, status, expiresAt } = req.body;
+  const result = await db.query(
+    `UPDATE jobs
+     SET title = COALESCE($1, title),
+         description = COALESCE($2, description),
+         location = COALESCE($3, location),
+         work_requirement = COALESCE($4, work_requirement),
+         is_public = COALESCE($5, is_public),
+         status = COALESCE($6, status),
+         expires_at = COALESCE($7, expires_at)
+     WHERE id = $8 AND employer_id = $9
+     RETURNING *`,
+    [title, description, location, workRequirement, isPublic, status, expiresAt, req.params.id, req.user.id]
+  );
+  if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+  res.json(result.rows[0]);
+});
+
+// DELETE /api/employer/jobs/:id — also removes its applications (FK cascade)
+router.delete('/jobs/:id', auth, async (req, res) => {
+  if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const result = await db.query(
+    `DELETE FROM jobs WHERE id = $1 AND employer_id = $2 RETURNING id`,
+    [req.params.id, req.user.id]
+  );
+  if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+  res.json({ success: true });
+});
+
+// GET /api/employer/jobs/:id/applicants
+router.get('/jobs/:id/applicants', auth, async (req, res) => {
+  if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const jobCheck = await db.query(`SELECT id, title FROM jobs WHERE id = $1 AND employer_id = $2`, [req.params.id, req.user.id]);
+  if (!jobCheck.rows.length) return res.status(404).json({ error: 'Not found' });
+
+  const result = await db.query(
+    `SELECT id, applicant_name, applicant_email, resume_url, message, created_at
+     FROM job_applications WHERE job_id = $1 ORDER BY created_at DESC`,
+    [req.params.id]
+  );
+  res.json({ job: jobCheck.rows[0], applicants: result.rows });
 });
 
 const TALENT_PAGE_SIZE = 20;

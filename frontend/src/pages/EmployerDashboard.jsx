@@ -103,6 +103,12 @@ export default function EmployerDashboard() {
           <Link to="/employer/talent" className="text-sm text-gray-600 hover:text-teal-600 font-medium">
             🔍 Talent Directory
           </Link>
+          <Link to="/employer/jobs" className="text-sm text-gray-600 hover:text-teal-600 font-medium">
+            📋 Job Postings
+          </Link>
+          <Link to="/jobs" className="text-sm text-gray-600 hover:text-teal-600 font-medium">
+            Open Roles
+          </Link>
           <AccountDropdown />
         </div>
       </nav>

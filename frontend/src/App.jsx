@@ -16,6 +16,9 @@ import CandidateProfile from './pages/CandidateProfile';
 import EmployerDashboard from './pages/EmployerDashboard';
 import TalentDirectory from './pages/TalentDirectory';
 import PublicTalentDirectory from './pages/PublicTalentDirectory';
+import OpenRoles from './pages/OpenRoles';
+import EmployerJobs from './pages/EmployerJobs';
+import JobApplicants from './pages/JobApplicants';
 import SampleReport from './pages/SampleReport';
 import Settings from './pages/Settings';
 import Terms from './pages/Terms';
@@ -51,6 +54,7 @@ export default function App() {
         <Route path="/referrals/share/:shareToken" element={<CombinedReport />} />
         <Route path="/sample-report" element={<SampleReport />} />
         <Route path="/talent" element={<PublicTalentDirectory />} />
+        <Route path="/jobs" element={<OpenRoles />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/verify-email/:token" element={<VerifyEmail />} />
         <Route path="/auth/google/role"     element={<GoogleRoleSelect />} />
@@ -67,6 +71,8 @@ export default function App() {
         {/* Employer */}
         <Route path="/employer/dashboard" element={<PrivateRoute role="employer"><EmployerDashboard /></PrivateRoute>} />
         <Route path="/employer/talent" element={<PrivateRoute role="employer"><TalentDirectory /></PrivateRoute>} />
+        <Route path="/employer/jobs" element={<PrivateRoute role="employer"><EmployerJobs /></PrivateRoute>} />
+        <Route path="/employer/jobs/:id/applicants" element={<PrivateRoute role="employer"><JobApplicants /></PrivateRoute>} />
 
         {/* Admin */}
         <Route path="/admin" element={<PrivateRoute adminOnly><AdminDashboard /></PrivateRoute>} />
