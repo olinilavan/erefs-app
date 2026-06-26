@@ -101,6 +101,43 @@ router.delete('/employers/:id', auth, adminOnly, async (req, res) => {
   res.json({ success: true });
 });
 
+const FLASH_DURATION_DAYS = 7;
+
+// GET /api/admin/flash-requests — jobs pending Flash payment confirmation
+router.get('/flash-requests', auth, adminOnly, async (req, res) => {
+  const result = await db.query(
+    `SELECT j.id, j.title, j.flash_requested_at, u.name AS employer_name, u.email AS employer_email, u.company
+     FROM jobs j JOIN users u ON u.id = j.employer_id
+     WHERE j.flash_status = 'pending_payment'
+     ORDER BY j.flash_requested_at ASC`
+  );
+  res.json(result.rows);
+});
+
+// PATCH /api/admin/flash-requests/:id/activate — confirm payment was received externally and go live
+router.patch('/flash-requests/:id/activate', auth, adminOnly, async (req, res) => {
+  const result = await db.query(
+    `UPDATE jobs
+     SET flash_status = 'active', flash_activated_at = NOW(), flash_expires_at = NOW() + ($2 * INTERVAL '1 day')
+     WHERE id = $1 AND flash_status = 'pending_payment'
+     RETURNING *`,
+    [req.params.id, FLASH_DURATION_DAYS]
+  );
+  if (!result.rows.length) return res.status(404).json({ error: 'Not found or not pending payment' });
+  res.json(result.rows[0]);
+});
+
+// PATCH /api/admin/flash-requests/:id/decline — reject a pending request (e.g. payment never arrived)
+router.patch('/flash-requests/:id/decline', auth, adminOnly, async (req, res) => {
+  const result = await db.query(
+    `UPDATE jobs SET flash_status = NULL, flash_requested_at = NULL
+     WHERE id = $1 AND flash_status = 'pending_payment' RETURNING id`,
+    [req.params.id]
+  );
+  if (!result.rows.length) return res.status(404).json({ error: 'Not found or not pending payment' });
+  res.json({ success: true });
+});
+
 // GET /api/admin/stats — platform-wide numbers
 router.get('/stats', auth, adminOnly, async (req, res) => {
   const result = await db.query(`

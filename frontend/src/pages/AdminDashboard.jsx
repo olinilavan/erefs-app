@@ -14,6 +14,11 @@ export default function AdminDashboard() {
   const [form, setForm] = useState({ candidateName: '', candidateEmail: '', targetRole: '', referrers: [{ name: '', email: '' }] });
   const [search, setSearch] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [flashRequests, setFlashRequests] = useState([]);
+
+  function loadFlashRequests() {
+    api.get('/api/admin/flash-requests').then(r => setFlashRequests(r.data));
+  }
 
   useEffect(() => {
     api.get('/api/admin/stats').then(r => setStats(r.data));
@@ -24,7 +29,18 @@ export default function AdminDashboard() {
         if (emp) selectEmployer(emp);
       }
     });
+    loadFlashRequests();
   }, []);
+
+  async function activateFlash(id) {
+    await api.patch(`/api/admin/flash-requests/${id}/activate`);
+    loadFlashRequests();
+  }
+
+  async function declineFlash(id) {
+    await api.patch(`/api/admin/flash-requests/${id}/decline`);
+    loadFlashRequests();
+  }
 
   async function selectEmployer(emp) {
     setSelected(emp);
@@ -125,6 +141,41 @@ export default function AdminDashboard() {
                 <div className="text-xs text-gray-500 mt-1">{s.label}</div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Flash Job payment queue */}
+        {flashRequests.length > 0 && (
+          <div className="bg-white rounded-2xl border border-orange-200 mb-8 overflow-hidden">
+            <div className="px-5 py-4 border-b border-orange-100 bg-orange-50">
+              <h2 className="font-semibold text-gray-800">🔥 Flash Job Requests — Pending Payment</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Confirm payment was received externally, then activate.</p>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {flashRequests.map(fr => (
+                <div key={fr.id} className="px-5 py-4 flex justify-between items-center">
+                  <div>
+                    <div className="font-medium text-sm text-gray-800">{fr.title}</div>
+                    <div className="text-xs text-gray-400">
+                      {fr.company || fr.employer_name} · {fr.employer_email}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      Requested {new Date(fr.flash_requested_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={() => declineFlash(fr.id)}
+                      className="text-xs text-gray-500 hover:text-red-600 font-medium transition">
+                      Decline
+                    </button>
+                    <button onClick={() => activateFlash(fr.id)}
+                      className="text-xs bg-orange-600 text-white px-3 py-1.5 rounded-lg hover:bg-orange-700 font-medium transition">
+                      Payment Received — Activate
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

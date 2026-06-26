@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import SAMPLE from '../sampleReportData';
 import Logo from '../components/Logo';
+import api from '../api';
+import { useAuth } from '../context/AuthContext';
 
 const HOW_IT_WORKS = [
   { step: '01', title: 'Request references', desc: 'Enter the candidate details and invite referees by email. Each referee gets a secure, unique link.' },
@@ -21,6 +24,121 @@ const SEEKER_BENEFITS = [
   'One link — no more chasing referees per application',
   'Build a reusable reference profile over your career',
 ];
+
+function FlashApplyForm({ jobId, onSent }) {
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    setSending(true);
+    try {
+      await api.post(`/api/jobs/${jobId}/apply`, { message: message || undefined });
+      onSent();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Something went wrong');
+      setSending(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-3 space-y-2 border-t border-orange-100 pt-3">
+      {error && <p className="text-xs text-red-500">{error}</p>}
+      <textarea rows={2} placeholder="Optional note to the employer" value={message}
+        onChange={e => setMessage(e.target.value)}
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+      <button type="submit" disabled={sending}
+        className="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-700 transition disabled:opacity-50">
+        {sending ? 'Submitting…' : 'Submit Application'}
+      </button>
+    </form>
+  );
+}
+
+function FlashJobsSection() {
+  const { user } = useAuth();
+  const [jobs, setJobs] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [openId, setOpenId] = useState(null);
+  const [sentIds, setSentIds] = useState([]);
+
+  useEffect(() => {
+    api.get('/api/jobs/flash').then(r => {
+      setJobs(r.data);
+      setLoaded(true);
+    });
+  }, []);
+
+  if (loaded && jobs.length === 0) return null;
+
+  return (
+    <section className="bg-orange-50 border-y border-orange-100 py-14 px-8">
+      <div className="max-w-5xl mx-auto">
+        <div className="text-center mb-8">
+          <div className="inline-block px-4 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-semibold mb-3">
+            🔥 Flash Jobs
+          </div>
+          <h2 className="text-2xl font-bold">Featured openings, hiring now</h2>
+        </div>
+
+        {!loaded ? (
+          <div className="text-center text-gray-400">Loading...</div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-4">
+            {jobs.map(job => (
+              <div key={job.id} className="bg-white rounded-xl border border-orange-200 p-5 shadow-sm">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="font-semibold text-gray-800">{job.title}</div>
+                    <div className="text-sm text-gray-500 mt-0.5">{job.company}</div>
+                  </div>
+                  <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium whitespace-nowrap ml-3">🔥 Flash</span>
+                </div>
+
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 mt-3">
+                  {job.location && <span>📍 {job.location}</span>}
+                  {job.work_requirement && <span>🪪 {job.work_requirement}</span>}
+                </div>
+
+                {job.description && <p className="text-sm text-gray-600 mt-3">{job.description}</p>}
+
+                {job.already_applied || sentIds.includes(job.id) ? (
+                  <button disabled
+                    className="mt-3 text-sm border border-gray-200 text-gray-400 px-4 py-2 rounded-lg cursor-not-allowed">
+                    ✓ Applied
+                  </button>
+                ) : !user ? (
+                  <Link to="/register?role=jobseeker"
+                    className="mt-3 inline-block text-sm bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition">
+                    Log in to Apply
+                  </Link>
+                ) : user.role !== 'jobseeker' ? (
+                  <button disabled title="Only job seeker accounts can apply"
+                    className="mt-3 text-sm border border-gray-200 text-gray-400 px-4 py-2 rounded-lg cursor-not-allowed">
+                    Job Seekers Only
+                  </button>
+                ) : openId === job.id ? (
+                  <FlashApplyForm jobId={job.id} onSent={() => { setOpenId(null); setSentIds(ids => [...ids, job.id]); }} />
+                ) : (
+                  <button onClick={() => setOpenId(job.id)}
+                    className="mt-3 text-sm bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition">
+                    Apply
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="text-center mt-6">
+          <Link to="/jobs" className="text-sm text-orange-700 hover:underline font-medium">View all Open Roles →</Link>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function Landing() {
   return (
@@ -61,6 +179,8 @@ export default function Landing() {
           </Link>
         </div>
       </section>
+
+      <FlashJobsSection />
 
       {/* Problem bar */}
       <section className="bg-gray-50 border-y border-gray-100 py-10 px-8">

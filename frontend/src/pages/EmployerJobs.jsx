@@ -114,6 +114,11 @@ function JobCard({ job, onUpdated, onDeleted }) {
     onDeleted();
   }
 
+  async function requestFlash() {
+    await api.post(`/api/employer/jobs/${job.id}/flash`);
+    onUpdated();
+  }
+
   if (editing) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-5 md:col-span-2">
@@ -144,13 +149,26 @@ function JobCard({ job, onUpdated, onDeleted }) {
 
       <div className="flex justify-between items-start">
         <div>
-          <div className="font-semibold text-gray-800">{job.title}</div>
+          <div className="flex items-center gap-2">
+            <div className="font-semibold text-gray-800">{job.title}</div>
+            {job.flash_status === 'active' && (
+              <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">🔥 Flash</span>
+            )}
+            {job.flash_status === 'pending_payment' && (
+              <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">Flash Pending</span>
+            )}
+          </div>
           <div className="text-xs text-gray-400 mt-0.5">
             {[job.location, job.work_requirement].filter(Boolean).join(' · ') || 'No location/requirement set'}
           </div>
           {job.expires_at && (
             <div className={`text-xs mt-0.5 ${isExpired ? 'text-red-500' : 'text-gray-400'}`}>
               {isExpired ? 'Expired' : 'Expires'} {new Date(job.expires_at).toLocaleDateString()}
+            </div>
+          )}
+          {job.flash_status === 'active' && job.flash_expires_at && (
+            <div className="text-xs text-orange-600 mt-0.5">
+              Flash featured until {new Date(job.flash_expires_at).toLocaleDateString()}
             </div>
           )}
         </div>
@@ -160,6 +178,12 @@ function JobCard({ job, onUpdated, onDeleted }) {
       </div>
 
       {job.description && <p className="text-sm text-gray-600 mt-3 line-clamp-3">{job.description}</p>}
+
+      {job.flash_status === 'pending_payment' && (
+        <p className="text-xs text-yellow-700 bg-yellow-50 rounded-lg px-3 py-2 mt-3">
+          Flash request received — we'll follow up with payment instructions, then feature this on the home page for 7 days once confirmed.
+        </p>
+      )}
 
       <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
         <Link to={`/employer/jobs/${job.id}/applicants`} className="text-sm text-teal-600 hover:underline font-medium">
@@ -172,6 +196,11 @@ function JobCard({ job, onUpdated, onDeleted }) {
           <button onClick={togglePublic} className="text-xs text-gray-500 hover:text-teal-600 transition">
             {job.is_public ? '✓ On Open Roles' : 'Not Public'}
           </button>
+          {!job.flash_status && (
+            <button onClick={requestFlash} className="text-xs text-orange-600 hover:text-orange-800 transition">
+              🔥 Make Flash Job
+            </button>
+          )}
           <button onClick={toggleStatus} className="text-xs text-gray-500 hover:text-gray-700 transition">
             {job.status === 'active' ? 'Close' : 'Reopen'}
           </button>

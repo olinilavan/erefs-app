@@ -43,6 +43,28 @@ router.get('/', optionalAuth, async (req, res) => {
   });
 });
 
+// GET /api/jobs/flash — public, no login. The 5 most recently activated Flash Jobs,
+// for the home page. If more than 5 are active at once, the oldest simply stops
+// appearing here (no state mutation) — its flash_expires_at is unaffected.
+router.get('/flash', optionalAuth, async (req, res) => {
+  const result = await db.query(
+    `SELECT j.id, j.title, j.description, j.location, j.work_requirement, j.created_at,
+       u.company,
+       EXISTS (
+         SELECT 1 FROM job_applications ja WHERE ja.job_id = j.id AND ja.jobseeker_id = $1
+       ) AS already_applied
+     FROM jobs j
+     JOIN users u ON u.id = j.employer_id
+     WHERE j.flash_status = 'active' AND j.status = 'active'
+       AND j.flash_expires_at > NOW()
+       AND (j.expires_at IS NULL OR j.expires_at > NOW())
+     ORDER BY j.flash_activated_at DESC
+     LIMIT 5`,
+    [req.user?.id || null]
+  );
+  res.json(result.rows);
+});
+
 // POST /api/jobs/:id/apply — jobseeker only. A deliberate disclosure: the employer
 // sees the applicant's real name/email/resume, same as any normal job application.
 router.post('/:id/apply', auth, async (req, res) => {

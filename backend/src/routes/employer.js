@@ -119,6 +119,21 @@ router.delete('/jobs/:id', auth, async (req, res) => {
   res.json({ success: true });
 });
 
+// POST /api/employer/jobs/:id/flash — request paid featured home-page placement.
+// Payment is manual for now: this just flags the request; an admin confirms payment
+// externally and activates it from the admin queue.
+router.post('/jobs/:id/flash', auth, async (req, res) => {
+  if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const result = await db.query(
+    `UPDATE jobs SET flash_status = 'pending_payment', flash_requested_at = NOW()
+     WHERE id = $1 AND employer_id = $2 AND (flash_status IS NULL OR flash_status != 'active')
+     RETURNING *`,
+    [req.params.id, req.user.id]
+  );
+  if (!result.rows.length) return res.status(400).json({ error: 'Not found, or already an active Flash Job' });
+  res.json(result.rows[0]);
+});
+
 // GET /api/employer/jobs/:id/applicants
 router.get('/jobs/:id/applicants', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
