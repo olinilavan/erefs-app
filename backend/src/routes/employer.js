@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const auth = require('../middleware/auth');
 const { sendEmployerContactRequest } = require('../services/email');
+const { matchCandidatesToJob } = require('../services/matching');
 
 const router = express.Router();
 
@@ -141,11 +142,51 @@ router.get('/jobs/:id/applicants', auth, async (req, res) => {
   if (!jobCheck.rows.length) return res.status(404).json({ error: 'Not found' });
 
   const result = await db.query(
-    `SELECT id, applicant_name, applicant_email, resume_url, message, created_at
+    `SELECT id, applicant_name, applicant_email, resume_url, resume_text, message, created_at,
+            fit_score, fit_rationale, fit_evaluated_at
      FROM job_applications WHERE job_id = $1 ORDER BY created_at DESC`,
     [req.params.id]
   );
   res.json({ job: jobCheck.rows[0], applicants: result.rows });
+});
+
+// POST /api/employer/jobs/:id/match-candidates — on-demand only, never automatic.
+// Ranks current applicants against the job via the LLM and caches the result on
+// job_applications so re-viewing the page doesn't re-trigger a Groq call.
+router.post('/jobs/:id/match-candidates', auth, async (req, res) => {
+  if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const jobCheck = await db.query(`SELECT * FROM jobs WHERE id = $1 AND employer_id = $2`, [req.params.id, req.user.id]);
+  if (!jobCheck.rows.length) return res.status(404).json({ error: 'Not found' });
+  const job = jobCheck.rows[0];
+
+  const applicantsResult = await db.query(
+    `SELECT id, resume_text, message FROM job_applications WHERE job_id = $1`,
+    [req.params.id]
+  );
+  if (!applicantsResult.rows.length) return res.status(400).json({ error: 'No applicants to match yet' });
+
+  let matches;
+  try {
+    matches = await matchCandidatesToJob(job, applicantsResult.rows);
+  } catch (err) {
+    console.error('[matchCandidatesToJob failed]', err.message);
+    return res.status(502).json({ error: 'AI matching failed — please try again' });
+  }
+
+  for (const m of matches) {
+    await db.query(
+      `UPDATE job_applications SET fit_score = $1, fit_rationale = $2, fit_evaluated_at = NOW() WHERE id = $3 AND job_id = $4`,
+      [m.fitScore, [m.rationale, ...(m.concerns?.length ? [`Concerns: ${m.concerns.join(', ')}`] : [])].join(' '), m.id, req.params.id]
+    );
+  }
+
+  const result = await db.query(
+    `SELECT id, applicant_name, applicant_email, resume_url, resume_text, message, created_at,
+            fit_score, fit_rationale, fit_evaluated_at
+     FROM job_applications WHERE job_id = $1 ORDER BY fit_score DESC NULLS LAST`,
+    [req.params.id]
+  );
+  res.json({ job, applicants: result.rows });
 });
 
 const TALENT_PAGE_SIZE = 20;

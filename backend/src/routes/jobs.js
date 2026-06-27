@@ -1,10 +1,25 @@
 const express = require('express');
+const multer = require('multer');
 const db = require('../db');
 const auth = require('../middleware/auth');
 const optionalAuth = require('../middleware/optionalAuth');
 const { sendNewApplicantNotification } = require('../services/email');
+const { parseResumeFile } = require('../services/resumeParser');
 
 const router = express.Router();
+
+const ALLOWED_RESUME_EXTENSIONS = ['pdf', 'doc', 'docx'];
+const upload = multer({
+  storage: multer.memoryStorage(), // buffer only — never written to disk; discarded after parsing
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter(req, file, cb) {
+    const ext = (file.originalname.split('.').pop() || '').toLowerCase();
+    if (!ALLOWED_RESUME_EXTENSIONS.includes(ext)) {
+      return cb(new Error('Only .pdf, .doc, and .docx resumes are accepted'));
+    }
+    cb(null, true);
+  },
+});
 
 const PAGE_SIZE = 20;
 
@@ -67,9 +82,16 @@ router.get('/flash', optionalAuth, async (req, res) => {
 
 // POST /api/jobs/:id/apply — jobseeker only. A deliberate disclosure: the employer
 // sees the applicant's real name/email/resume, same as any normal job application.
-router.post('/:id/apply', auth, async (req, res) => {
+// Accepts an optional resume as an uploaded .pdf/.doc/.docx file (parsed to text and
+// discarded — the file itself is never stored) OR pasted resume text directly.
+router.post('/:id/apply', auth, (req, res, next) => {
+  upload.single('resume')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    next();
+  });
+}, async (req, res) => {
   if (req.user.role !== 'jobseeker') return res.status(403).json({ error: 'Only job seekers can apply' });
-  const { message } = req.body;
+  const { message, resumeText } = req.body;
 
   const jobResult = await db.query(
     `SELECT j.id, j.title, j.employer_id, u.name AS employer_name, u.email AS employer_email
@@ -84,11 +106,20 @@ router.post('/:id/apply', auth, async (req, res) => {
   const applicantResult = await db.query(`SELECT name, email, resume_url FROM users WHERE id = $1`, [req.user.id]);
   const applicant = applicantResult.rows[0];
 
+  let parsedResumeText = resumeText?.trim() || null;
+  if (req.file) {
+    try {
+      parsedResumeText = await parseResumeFile(req.file.buffer, req.file.originalname);
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  }
+
   try {
     await db.query(
-      `INSERT INTO job_applications (job_id, jobseeker_id, applicant_name, applicant_email, resume_url, message)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [job.id, req.user.id, applicant.name, applicant.email, applicant.resume_url || null, message || null]
+      `INSERT INTO job_applications (job_id, jobseeker_id, applicant_name, applicant_email, resume_url, resume_text, message)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [job.id, req.user.id, applicant.name, applicant.email, applicant.resume_url || null, parsedResumeText, message || null]
     );
   } catch (err) {
     if (err.code === '23505') return res.status(400).json({ error: 'You have already applied to this job' });

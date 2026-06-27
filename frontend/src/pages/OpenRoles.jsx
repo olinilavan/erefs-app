@@ -8,6 +8,9 @@ import { useAuth } from '../context/AuthContext';
 
 function ApplyForm({ jobId, onSent }) {
   const [message, setMessage] = useState('');
+  const [resumeMode, setResumeMode] = useState('none'); // none | upload | paste
+  const [resumeFile, setResumeFile] = useState(null);
+  const [resumeText, setResumeText] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
 
@@ -16,7 +19,11 @@ function ApplyForm({ jobId, onSent }) {
     setError('');
     setSending(true);
     try {
-      await api.post(`/api/jobs/${jobId}/apply`, { message: message || undefined });
+      const formData = new FormData();
+      if (message) formData.append('message', message);
+      if (resumeMode === 'upload' && resumeFile) formData.append('resume', resumeFile);
+      if (resumeMode === 'paste' && resumeText) formData.append('resumeText', resumeText);
+      await api.post(`/api/jobs/${jobId}/apply`, formData);
       onSent();
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong');
@@ -30,7 +37,25 @@ function ApplyForm({ jobId, onSent }) {
       <textarea rows={2} placeholder="Optional note to the employer" value={message}
         onChange={e => setMessage(e.target.value)}
         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
-      <p className="text-xs text-gray-400">Your name, email, and resume link (if set) will be shared with this employer.</p>
+
+      <select value={resumeMode} onChange={e => setResumeMode(e.target.value)}
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+        <option value="none">Don't include a resume</option>
+        <option value="upload">Upload a resume file (.pdf, .doc, .docx)</option>
+        <option value="paste">Paste my resume text</option>
+      </select>
+
+      {resumeMode === 'upload' && (
+        <input type="file" accept=".pdf,.doc,.docx" onChange={e => setResumeFile(e.target.files[0])}
+          className="w-full text-sm" />
+      )}
+      {resumeMode === 'paste' && (
+        <textarea rows={5} placeholder="Paste your resume text here" value={resumeText}
+          onChange={e => setResumeText(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+      )}
+
+      <p className="text-xs text-gray-400">Your name, email, and resume (if provided) will be shared with this employer.</p>
       <button type="submit" disabled={sending}
         className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition disabled:opacity-50">
         {sending ? 'Submitting…' : 'Submit Application'}

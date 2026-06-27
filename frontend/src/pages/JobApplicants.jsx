@@ -5,16 +5,42 @@ import Logo from '../components/Logo';
 import AccountDropdown from '../components/AccountDropdown';
 import { normalizeUrl } from '../utils/url';
 
+function fitColor(score) {
+  if (score == null) return 'bg-gray-100 text-gray-500';
+  if (score >= 75) return 'bg-green-100 text-green-700';
+  if (score >= 50) return 'bg-yellow-100 text-yellow-700';
+  return 'bg-red-100 text-red-600';
+}
+
 export default function JobApplicants() {
   const { id } = useParams();
   const [data, setData] = useState(null);
   const [error, setError] = useState(false);
+  const [matching, setMatching] = useState(false);
+  const [matchError, setMatchError] = useState('');
 
-  useEffect(() => {
+  function load() {
     api.get(`/api/employer/jobs/${id}/applicants`)
       .then(r => setData(r.data))
       .catch(() => setError(true));
-  }, [id]);
+  }
+
+  useEffect(() => { load(); }, [id]);
+
+  async function runMatching() {
+    setMatching(true);
+    setMatchError('');
+    try {
+      const r = await api.post(`/api/employer/jobs/${id}/match-candidates`);
+      setData(r.data);
+    } catch (err) {
+      setMatchError(err.response?.data?.error || 'Matching failed — please try again');
+    } finally {
+      setMatching(false);
+    }
+  }
+
+  const hasAnyFitScore = data?.applicants.some(a => a.fit_score != null);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -32,10 +58,24 @@ export default function JobApplicants() {
           <div className="text-center py-20 text-gray-400">Loading...</div>
         ) : (
           <>
-            <h1 className="text-2xl font-bold mt-2 mb-1">{data.job.title}</h1>
-            <p className="text-gray-500 text-sm mb-8">
+            <div className="flex justify-between items-start mt-2 mb-1">
+              <h1 className="text-2xl font-bold">{data.job.title}</h1>
+              {data.applicants.length > 0 && (
+                <button onClick={runMatching} disabled={matching}
+                  className="text-sm bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition disabled:opacity-50 whitespace-nowrap">
+                  {matching ? 'Matching…' : hasAnyFitScore ? '🤖 Re-run Matching' : '🤖 Match Candidates'}
+                </button>
+              )}
+            </div>
+            <p className="text-gray-500 text-sm mb-2">
               {data.applicants.length} applicant{data.applicants.length !== 1 ? 's' : ''}
             </p>
+            {matchError && <p className="text-sm text-red-500 mb-4">{matchError}</p>}
+            {hasAnyFitScore && (
+              <p className="text-xs text-gray-400 mb-6">
+                AI-suggested ranking based on resume/cover note text — advisory only, not a hiring decision.
+              </p>
+            )}
 
             {data.applicants.length === 0 ? (
               <div className="text-center py-20 text-gray-400">
@@ -51,16 +91,31 @@ export default function JobApplicants() {
                         <div className="font-medium">{a.applicant_name}</div>
                         <div className="text-sm text-gray-400">{a.applicant_email}</div>
                       </div>
-                      <span className="text-xs text-gray-400">{new Date(a.created_at).toLocaleDateString()}</span>
+                      <div className="flex items-center gap-2">
+                        {a.fit_score != null && (
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${fitColor(a.fit_score)}`}>
+                            Fit: {a.fit_score}
+                          </span>
+                        )}
+                        <span className="text-xs text-gray-400 whitespace-nowrap">{new Date(a.created_at).toLocaleDateString()}</span>
+                      </div>
                     </div>
-                    {a.resume_url && (
-                      <a href={normalizeUrl(a.resume_url)} target="_blank" rel="noopener noreferrer"
-                        className="inline-block text-sm text-teal-600 hover:underline mt-2">
-                        📄 View Resume →
-                      </a>
-                    )}
+
+                    <div className="flex flex-wrap gap-3 mt-2">
+                      {a.resume_url && (
+                        <a href={normalizeUrl(a.resume_url)} target="_blank" rel="noopener noreferrer"
+                          className="inline-block text-sm text-teal-600 hover:underline">
+                          📄 View Resume Link →
+                        </a>
+                      )}
+                      {a.resume_text && <span className="text-xs text-gray-400">📄 Resume on file (uploaded/pasted)</span>}
+                    </div>
+
                     {a.message && (
                       <p className="text-sm text-gray-600 mt-2 bg-gray-50 rounded-lg px-3 py-2">{a.message}</p>
+                    )}
+                    {a.fit_rationale && (
+                      <p className="text-sm text-gray-700 mt-2 bg-teal-50 rounded-lg px-3 py-2">{a.fit_rationale}</p>
                     )}
                   </div>
                 ))}
