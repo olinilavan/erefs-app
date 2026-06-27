@@ -1,6 +1,6 @@
 # VouchMetrics — Product Requirements Document
 **Elite Referral Automation Platform**
-Version 1.0 | May 2026
+Version 1.1 | June 2026 — updated to reflect the Talent Pool, Open Roles, Flash Jobs, and Professional Check features shipped after the original v1.0 MVP.
 
 ---
 
@@ -69,6 +69,44 @@ Today's referral process is informal, inconsistent, and slow. VouchMetrics stand
 9. Employer receives report via dashboard + email notification
 
 **Key Value:** Employer gets structured, AI-analyzed referral data mid-funnel, not as a last-minute box-check.
+
+---
+
+### Use Case 3: Candidate Professional Check (Employer Flow Only)
+
+**Flow:**
+1. Employer creates a referral request with the candidate's email
+2. System emails the candidate a link to a public self-report form (no login)
+3. Candidate optionally writes a short professional summary in their own words
+4. LLM turns the self-report into a structured "Professional Profile" (current role, skills, career trajectory) shown alongside the reference report, clearly labeled as self-reported and not independently verified
+5. Jobseeker-initiated requests never trigger this — jobseekers use the lighter-weight resume-link flow instead (see Use Case 1)
+
+**Key Value:** Gives employers extra context on a candidate without resorting to LinkedIn scraping, which is legally unviable (Proxycurl, the would-be data provider, was shut down in 2026 following a LinkedIn lawsuit over unauthorized scraping). Everything here is **self-reported only** — no automated data extraction from any third party.
+
+---
+
+### Use Case 4: Talent Pool (Anonymized Candidate Directory)
+
+**Flow:**
+1. Jobseeker opts in via two Settings toggles: "Show my profile publicly" and "Allow employers to reach out"
+2. Their profile (headline, years of experience, location, availability, reference-complete status) appears in a public, paginated directory — **never their name or email**
+3. Logged-in employers browse and click "Reach Out," submitting their own contact info
+4. VouchMetrics emails the **employer's** contact details to the jobseeker — the jobseeker decides whether to respond, and the employer never learns the jobseeker's identity unless they do
+5. One outreach request per employer/jobseeker pair (no repeat contact)
+
+**Key Value:** Lead generation for employers without compromising jobseeker privacy — the opposite contact direction from a typical job board.
+
+---
+
+### Use Case 5: Open Roles (Job Board) + Flash Jobs (Paid Featured Placement)
+
+**Flow:**
+1. Employer posts a job (title, description, location, work authorization requirement, optional expiration date)
+2. Anyone — logged in or not — can browse open roles; only a logged-in jobseeker can apply
+3. Applying is a standard, non-brokered disclosure: the employer sees the applicant's real name, email, and resume link, same as any normal job application
+4. **Flash Jobs** are a paid upsell: the employer requests featured home-page placement, an admin manually confirms payment was received (no payment processor is integrated yet) and activates it, and the posting appears in a "🔥 Flash Jobs" section on the home page for 7 days. The 5 most-recently-activated Flash Jobs show at any time; older ones simply roll off without any state change.
+
+**Key Value:** A second monetizable surface beyond reference checks, while keeping Open Roles itself free and broadly visible.
 
 ---
 
@@ -154,11 +192,11 @@ After all referrer responses are collected, the system passes them to an LLM (e.
 
 ### Backend
 - **Node.js + Express** REST API
-- **PostgreSQL** for persistent data (users, referrers, responses, reports)
-- **JWT** authentication (job seekers + employers)
-- **Nodemailer** for transactional email
-- **Anthropic Claude API** for LLM report generation
-- **PDF generation** via Puppeteer or pdfkit
+- **PostgreSQL** for persistent data
+- **JWT** authentication (job seekers + employers), plus Google and LinkedIn OAuth (the latter via "Sign In with LinkedIn using OpenID Connect" — name/email/photo only, no work history or connections)
+- **Resend** for transactional email (not Nodemailer — implemented via the Resend API directly)
+- **Groq API** (`llama-3.3-70b-versatile` via the Vercel AI SDK) for LLM report generation and Professional Profile analysis — not Anthropic Claude, despite the original v1.0 plan
+- **PDF generation** — not implemented; still out of scope (see §12)
 
 ### Hosting (Recommended)
 - Frontend: Vercel
@@ -171,32 +209,43 @@ After all referrer responses are collected, the system passes them to an LLM (e.
 
 | Table | Key Fields |
 |-------|-----------|
-| users | id, email, role (jobseeker/employer), name, company, google_id, reminder_days, is_verified, is_admin |
-| jobs | id, employer_id, title, description, status |
-| referral_requests | id, requester_id, requester_role, candidate_name, candidate_email, job_id, status |
+| users | id, email, role (jobseeker/employer), name, company, google_id, linkedin_id, profile_photo_url, reminder_days, is_verified, is_admin, resume_url, share_link_expiry_days, **Talent Pool:** vm_id, publicly_discoverable, allow_employer_contact, headline, years_experience, location, availability |
+| jobs | id, employer_id, title, description, status, location, work_requirement, is_public, expires_at, **Flash Jobs:** flash_status, flash_requested_at, flash_activated_at, flash_expires_at |
+| job_applications | id, job_id, jobseeker_id, applicant_name, applicant_email, resume_url, message, created_at — unique per (job_id, jobseeker_id) |
+| referral_requests | id, requester_id, requester_role, candidate_name, candidate_email, job_id, status, resume_url, share_token, share_token_expires_at, **Professional Check (employer flow only):** candidate_token, candidate_professional_summary, linkedin_analysis_json |
 | referrers | id, referral_request_id, name, email, token, status (invited/viewed/completed/declined/call_requested), viewed_at, submitted_at |
 | responses | id, referrer_id, question_number, answer_text, rating |
-| reports | id, referrer_id, llm_output_json, share_token, created_at |
+| reports | id, referrer_id, llm_output_json, share_token, share_token_expires_at, created_at |
+| contact_requests | id, employer_id, jobseeker_id, employer_name, employer_email, employer_phone, message, created_at — unique per (employer_id, jobseeker_id); the Talent Pool's brokered-outreach record |
 
 ---
 
 ## 10. Pages / Routes
 
-### Public
-- `/` — Landing page
-- `/ref/:token` — Referrer form (no login)
-- `/report/:shareToken` — View-only report
+### Public (no login required)
+- `/` — Landing page, including the Flash Jobs section
+- `/ref/:token` — Referrer form
+- `/candidate/:token` — Candidate self-report form (Professional Check)
+- `/report/share/:shareToken` — View-only single report (expires per requester's setting)
+- `/referrals/share/:shareToken` — View-only combined report (all completed reports for one request)
+- `/talent` — Public Talent Pool browse
+- `/jobs` — Public Open Roles browse (login only required to Apply)
+- `/sample-report` — Static sample report for marketing
 
 ### Job Seeker (auth required)
-- `/dashboard` — Overview, recent requests
+- `/dashboard` — Overview, recent requests, resume link
 - `/references/new` — Create new referral request
-- `/references/:id` — View request + referrer status
+- `/references/:id` — View request + referrer status + Professional Profile (if employer-initiated)
 - `/reports/:id` — View generated report
 
 ### Employer (auth required)
 - `/employer/dashboard` — Pipeline view of candidates
-- `/employer/jobs` — Manage job postings
-- `/employer/candidates/:id` — Candidate referral status + report
+- `/employer/jobs` — Post/edit/delete job postings, request Flash Jobs
+- `/employer/jobs/:id/applicants` — Applicants per job posting
+- `/employer/talent` — Talent Pool with brokered "Reach Out"
+
+### Admin (auth + is_admin required)
+- `/admin` — Platform-wide oversight, including the Flash Job payment-confirmation queue
 
 ---
 
@@ -211,9 +260,9 @@ After all referrer responses are collected, the system passes them to an LLM (e.
 
 ---
 
-## 12. MVP Scope (Phase 1)
+## 12. MVP Scope (Phase 1) — Shipped
 
-Phase 1 ships with:
+Phase 1 shipped with:
 - Job Seeker sign-up + referral request flow
 - Referrer form (10 questions, no login)
 - LLM report generation + view
@@ -223,8 +272,19 @@ Phase 1 ships with:
 Out of scope for Phase 1:
 - PDF export
 - Side-by-side candidate comparison
-- LinkedIn import
+- ~~LinkedIn import~~
 - Integrations (ATS, Slack, email providers)
+
+## 12a. Phase 2 — Shipped (post-MVP additions)
+
+- **Google + LinkedIn Sign-In** (OAuth login/registration convenience only — name/email/photo, never work history or connections)
+- **Professional Check** — candidate self-reported summary, LLM-structured, employer flow only (see Use Case 3)
+- **Resume links** — lightweight alternative for jobseekers, no LLM processing
+- **Combined share links** with configurable expiry (default 14 days)
+- **Talent Pool** — anonymized jobseeker directory with brokered employer outreach (Use Case 4)
+- **Open Roles + Flash Jobs** — public job board, manual/invoice-based paid featured placement (Use Case 5)
+
+**Explicitly rejected, not just deferred:** automated LinkedIn data import/scraping. Proxycurl, the data provider this was originally planned around, was shut down by LinkedIn's legal action in 2026 for unauthorized scraping. Every alternative scraping provider carries the same legal exposure. The Professional Check and Talent Pool features above are deliberately self-reported-only as a result — this is a permanent product constraint, not a temporary gap.
 
 ---
 

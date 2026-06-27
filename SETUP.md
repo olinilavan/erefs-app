@@ -19,7 +19,20 @@ psql $DATABASE_URL -f backend/src/db/migrations/004_password_reset.sql
 psql $DATABASE_URL -f backend/src/db/migrations/005_email_verification.sql
 psql $DATABASE_URL -f backend/src/db/migrations/006_google_auth.sql
 psql $DATABASE_URL -f backend/src/db/migrations/007_referrer_status.sql
+psql $DATABASE_URL -f backend/src/db/migrations/008_linkedin.sql
+psql $DATABASE_URL -f backend/src/db/migrations/009_linkedin_user.sql
+psql $DATABASE_URL -f backend/src/db/migrations/010_candidate_self_report.sql
+psql $DATABASE_URL -f backend/src/db/migrations/011_linkedin_oauth.sql
+psql $DATABASE_URL -f backend/src/db/migrations/011_resume_link.sql
+psql $DATABASE_URL -f backend/src/db/migrations/012_combined_share.sql
+psql $DATABASE_URL -f backend/src/db/migrations/013_share_link_expiry.sql
+psql $DATABASE_URL -f backend/src/db/migrations/014_talent_directory.sql
+psql $DATABASE_URL -f backend/src/db/migrations/015_talent_profile_fields.sql
+psql $DATABASE_URL -f backend/src/db/migrations/016_job_postings.sql
+psql $DATABASE_URL -f backend/src/db/migrations/017_job_expiry.sql
+psql $DATABASE_URL -f backend/src/db/migrations/018_flash_jobs.sql
 ```
+> Note: two files are both numbered `011` (`011_linkedin_oauth.sql` and `011_resume_link.sql`) — a known duplicate from parallel work. Both are additive/idempotent (`ADD COLUMN IF NOT EXISTS`) and safe to run in either order.
 
 Or use [Supabase](https://supabase.com) — paste the schema and each migration into the SQL editor in order.
 
@@ -104,37 +117,55 @@ erefs-app/
 │       ├── db.js                  # PostgreSQL pool
 │       ├── db/
 │       │   ├── schema.sql         # Base schema (source of truth)
-│       │   └── migrations/        # Numbered — apply in order
-│       ├── middleware/auth.js     # JWT verification
+│       │   └── migrations/        # Numbered through 018 — apply in order (see note on duplicate 011s above)
+│       ├── middleware/
+│       │   ├── auth.js            # JWT verification (required — 401 if missing/invalid)
+│       │   └── optionalAuth.js    # Identifies user if token present, never blocks (public routes with personalized state)
 │       ├── routes/
-│       │   ├── auth.js            # Register / Login / Google OAuth
-│       │   ├── referrals.js       # Create & list referral requests
+│       │   ├── auth.js            # Register / Login / Google OAuth / LinkedIn OAuth
+│       │   ├── referrals.js       # Create & list referral requests, combined share link
 │       │   ├── referrers.js       # Token-based referrer form, decline, call-request
-│       │   ├── reports.js         # View reports
-│       │   ├── employer.js        # Employer-specific routes
-│       │   ├── settings.js        # User settings
-│       │   └── admin.js           # Admin dashboard routes
+│       │   ├── candidateProfile.js# Token-based candidate self-report (Professional Check, employer flow only)
+│       │   ├── reports.js         # View reports (single + share, with expiry)
+│       │   ├── employer.js        # Candidate pipeline, job postings, Talent Pool + contact
+│       │   ├── talent.js          # Public Talent Pool browse (no auth)
+│       │   ├── jobs.js            # Public Open Roles + Flash Jobs browse, jobseeker apply
+│       │   ├── settings.js        # User settings (incl. resume link, Talent Pool opt-ins, share expiry)
+│       │   └── admin.js           # Admin dashboard routes + Flash Job payment queue
 │       └── services/
 │           ├── llm.js             # Groq report generation (completed referrers only)
-│           ├── email.js           # Resend — invite, reminder, password reset, verification
+│           ├── linkedin.js        # LLM analysis of candidate's self-reported summary (no scraping)
+│           ├── email.js           # Resend — invite, reminder, password reset, verification, candidate-profile invite, Talent Pool contact, new applicant
 │           └── reminders.js       # Daily 08:00 cron — sends reminders to invited/viewed referrers
 └── frontend/
     └── src/
-        ├── App.jsx                # All routes + PrivateRoute guard
+        ├── App.jsx                # All routes + PrivateRoute guard (some routes intentionally public)
         ├── api.js                 # Axios instance (JWT attached automatically)
         ├── context/AuthContext.jsx
+        ├── components/
+        │   └── Pagination.jsx     # Shared pagination control
+        ├── utils/url.js           # normalizeUrl() — prepends https:// to bare-domain links
         └── pages/
-            ├── Landing.jsx
+            ├── Landing.jsx            # Includes the Flash Jobs section
             ├── Login.jsx
             ├── Register.jsx
             ├── GoogleRoleSelect.jsx   # Role picker for new Google sign-in users
-            ├── Dashboard.jsx          # Job seeker — referral requests list
+            ├── LinkedInSuccess.jsx    # LinkedIn OAuth callback landing
+            ├── LinkedInRoleSelect.jsx # Role picker for new LinkedIn sign-in users
+            ├── Dashboard.jsx          # Job seeker — referral requests, resume link
             ├── NewReferral.jsx
-            ├── ReferralDetail.jsx     # Per-referrer status badges + legend
+            ├── ReferralDetail.jsx     # Per-referrer status badges + Professional Profile (employer flow)
             ├── ReferrerForm.jsx       # 10-question form + Decline / Request a Call
+            ├── CandidateProfile.jsx   # Public self-report form (Professional Check)
             ├── Report.jsx             # Authenticated report view
-            ├── PublicReport.jsx       # Shareable read-only report
+            ├── PublicReport.jsx       # Shareable read-only report (single, with expiry)
+            ├── CombinedReport.jsx     # Shareable read-only report (all completed reports for one request)
             ├── EmployerDashboard.jsx
-            ├── AdminDashboard.jsx
+            ├── EmployerJobs.jsx       # Post/edit/delete job postings, request Flash
+            ├── JobApplicants.jsx      # Applicants per job posting
+            ├── TalentDirectory.jsx    # Employer-side Talent Pool (authenticated)
+            ├── PublicTalentDirectory.jsx # Public Talent Pool (/talent)
+            ├── OpenRoles.jsx          # Public job board (/jobs)
+            ├── AdminDashboard.jsx     # Includes Flash Job payment queue
             └── Settings.jsx
 ```
