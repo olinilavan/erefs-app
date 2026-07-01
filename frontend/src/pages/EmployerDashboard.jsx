@@ -106,6 +106,9 @@ export default function EmployerDashboard() {
           <Link to="/employer/jobs" className="text-sm text-gray-600 hover:text-teal-600 font-medium">
             📋 Job Postings
           </Link>
+          <Link to="/employer/vendor-jobs" className="text-sm text-gray-600 hover:text-teal-600 font-medium">
+            🔗 Vendor Jobs
+          </Link>
           <Link to="/jobs" className="text-sm text-gray-600 hover:text-teal-600 font-medium">
             Open Roles
           </Link>

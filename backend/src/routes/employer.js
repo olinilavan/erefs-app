@@ -1,10 +1,25 @@
 const express = require('express');
+const multer = require('multer');
 const db = require('../db');
 const auth = require('../middleware/auth');
-const { sendEmployerContactRequest } = require('../services/email');
+const { sendEmployerContactRequest, sendVendorLinkRequest, sendVendorLinkApproved, sendVendorLinkDeclined, sendVendorLinkRevoked, sendVendorSubmissionNotification } = require('../services/email');
 const { matchCandidatesToJob } = require('../services/matching');
+const { parseResumeFile } = require('../services/resumeParser');
 
 const router = express.Router();
+
+const ALLOWED_RESUME_EXTENSIONS = ['pdf', 'doc', 'docx'];
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter(req, file, cb) {
+    const ext = (file.originalname.split('.').pop() || '').toLowerCase();
+    if (!ALLOWED_RESUME_EXTENSIONS.includes(ext)) {
+      return cb(new Error('Only .pdf, .doc, and .docx resumes are accepted'));
+    }
+    cb(null, true);
+  },
+});
 
 // GET /api/employer/candidates?archived=true|false
 router.get('/candidates', auth, async (req, res) => {
@@ -122,11 +137,12 @@ router.delete('/jobs/:id', auth, async (req, res) => {
 
 // POST /api/employer/jobs/:id/flash — request paid featured home-page placement.
 // Payment is manual for now: this just flags the request; an admin confirms payment
-// externally and activates it from the admin queue.
+// externally and activates it from the admin queue. Flash implies public — a
+// Vendor Only posting going Flash is switched back to Open to Public.
 router.post('/jobs/:id/flash', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
   const result = await db.query(
-    `UPDATE jobs SET flash_status = 'pending_payment', flash_requested_at = NOW()
+    `UPDATE jobs SET flash_status = 'pending_payment', flash_requested_at = NOW(), is_public = true
      WHERE id = $1 AND employer_id = $2 AND (flash_status IS NULL OR flash_status != 'active')
      RETURNING *`,
     [req.params.id, req.user.id]
@@ -147,7 +163,35 @@ router.get('/jobs/:id/applicants', auth, async (req, res) => {
      FROM job_applications WHERE job_id = $1 ORDER BY created_at DESC`,
     [req.params.id]
   );
-  res.json({ job: jobCheck.rows[0], applicants: result.rows });
+
+  const vendorResult = await db.query(
+    `SELECT vs.id, vs.candidate_name, vs.candidate_email, vs.candidate_phone, vs.resume_text,
+            vs.cover_note, vs.status, vs.created_at,
+            u.company AS vendor_company, u.name AS vendor_name
+     FROM vendor_submissions vs JOIN users u ON u.id = vs.vendor_employer_id
+     WHERE vs.job_id = $1 ORDER BY vs.created_at DESC`,
+    [req.params.id]
+  );
+
+  res.json({ job: jobCheck.rows[0], applicants: result.rows, vendorSubmissions: vendorResult.rows });
+});
+
+// PATCH /api/employer/jobs/:id/vendor-submissions/:submissionId — review status
+router.patch('/jobs/:id/vendor-submissions/:submissionId', auth, async (req, res) => {
+  if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const { status } = req.body;
+  const VALID_STATUSES = ['submitted', 'reviewed', 'shortlisted', 'rejected', 'hired'];
+  if (!VALID_STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+
+  const result = await db.query(
+    `UPDATE vendor_submissions vs SET status = $1, reviewed_at = NOW()
+     FROM jobs j
+     WHERE vs.id = $2 AND vs.job_id = $3 AND vs.job_id = j.id AND j.employer_id = $4
+     RETURNING vs.*`,
+    [status, req.params.submissionId, req.params.id, req.user.id]
+  );
+  if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+  res.json(result.rows[0]);
 });
 
 // POST /api/employer/jobs/:id/match-candidates — on-demand only, never automatic.
@@ -258,6 +302,213 @@ router.post('/talent/:vmId/contact', auth, async (req, res) => {
 
   await sendEmployerContactRequest(jobseeker, employer, phone, message);
   res.json({ success: true });
+});
+
+// ── Vendor links — employer-to-employer, no separate vendor role ───────────
+// "Vendor" is purely a relationship direction: any employer can request to
+// become another employer's vendor. The buyer (job-posting company) approves
+// or declines. Links are direct only — no transitive chaining.
+
+// GET /api/employer/vendors/directory — other employer companies + my outgoing link status with each
+router.get('/vendors/directory', auth, async (req, res) => {
+  if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const result = await db.query(
+    `SELECT u.id, u.name, u.company,
+            l.status AS link_status
+     FROM users u
+     LEFT JOIN employer_vendor_links l
+       ON l.buyer_employer_id = u.id AND l.vendor_employer_id = $1
+     WHERE u.role = 'employer' AND u.id != $1 AND (u.is_active IS NULL OR u.is_active = true)
+     ORDER BY u.company NULLS LAST, u.name`,
+    [req.user.id]
+  );
+  res.json(result.rows);
+});
+
+// POST /api/employer/vendors/request — I want to become buyerEmployerId's vendor
+router.post('/vendors/request', auth, async (req, res) => {
+  if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const { buyerEmployerId } = req.body;
+  if (!buyerEmployerId) return res.status(400).json({ error: 'buyerEmployerId is required' });
+  if (buyerEmployerId === req.user.id) return res.status(400).json({ error: 'You cannot link to yourself' });
+
+  const buyerCheck = await db.query(`SELECT id FROM users WHERE id = $1 AND role = 'employer'`, [buyerEmployerId]);
+  if (!buyerCheck.rows.length) return res.status(404).json({ error: 'Employer not found' });
+
+  const result = await db.query(
+    `INSERT INTO employer_vendor_links (buyer_employer_id, vendor_employer_id, status, requested_at)
+     VALUES ($1, $2, 'pending', NOW())
+     ON CONFLICT (buyer_employer_id, vendor_employer_id) DO UPDATE
+       SET status = 'pending', requested_at = NOW(), revoked_at = NULL
+       WHERE employer_vendor_links.status IN ('declined', 'revoked')
+     RETURNING *`,
+    [buyerEmployerId, req.user.id]
+  );
+  if (!result.rows.length) return res.status(400).json({ error: 'A request already exists with this employer' });
+
+  const buyer = await db.query(`SELECT name, email, company FROM users WHERE id = $1`, [buyerEmployerId]);
+  const vendor = await db.query(`SELECT name, email, company FROM users WHERE id = $1`, [req.user.id]);
+  sendVendorLinkRequest(buyer.rows[0], vendor.rows[0]).catch(err => console.error('[vendor link email]', err.message));
+
+  res.json(result.rows[0]);
+});
+
+// GET /api/employer/vendors/incoming — pending requests where I'm the buyer
+router.get('/vendors/incoming', auth, async (req, res) => {
+  if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const result = await db.query(
+    `SELECT l.*, u.name AS vendor_name, u.company AS vendor_company, u.email AS vendor_email
+     FROM employer_vendor_links l JOIN users u ON u.id = l.vendor_employer_id
+     WHERE l.buyer_employer_id = $1 AND l.status = 'pending'
+     ORDER BY l.requested_at DESC`,
+    [req.user.id]
+  );
+  res.json(result.rows);
+});
+
+// GET /api/employer/vendors/links — all my links, either side
+router.get('/vendors/links', auth, async (req, res) => {
+  if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const result = await db.query(
+    `SELECT l.*,
+            b.name AS buyer_name, b.company AS buyer_company,
+            v.name AS vendor_name, v.company AS vendor_company
+     FROM employer_vendor_links l
+     JOIN users b ON b.id = l.buyer_employer_id
+     JOIN users v ON v.id = l.vendor_employer_id
+     WHERE l.buyer_employer_id = $1 OR l.vendor_employer_id = $1
+     ORDER BY l.requested_at DESC`,
+    [req.user.id]
+  );
+  res.json(result.rows);
+});
+
+// DELETE /api/employer/vendors/links/:id — revoke an approved link, either side
+router.delete('/vendors/links/:id', auth, async (req, res) => {
+  if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const result = await db.query(
+    `UPDATE employer_vendor_links SET status = 'revoked', revoked_at = NOW()
+     WHERE id = $1 AND (buyer_employer_id = $2 OR vendor_employer_id = $2) AND status = 'approved'
+     RETURNING *`,
+    [req.params.id, req.user.id]
+  );
+  if (!result.rows.length) return res.status(404).json({ error: 'Link not found or not active' });
+
+  const link = result.rows[0];
+  const otherId = link.buyer_employer_id === req.user.id ? link.vendor_employer_id : link.buyer_employer_id;
+  const me = await db.query(`SELECT name, email FROM users WHERE id = $1`, [req.user.id]);
+  const other = await db.query(`SELECT name, email, company FROM users WHERE id = $1`, [otherId]);
+  sendVendorLinkRevoked(other.rows[0], me.rows[0]).catch(err => console.error('[vendor link email]', err.message));
+
+  res.json({ success: true });
+});
+
+// POST /api/employer/vendors/:id/approve — buyer approves a pending request
+router.post('/vendors/:id/approve', auth, async (req, res) => {
+  if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const result = await db.query(
+    `UPDATE employer_vendor_links SET status = 'approved', approved_at = NOW()
+     WHERE id = $1 AND buyer_employer_id = $2 AND status = 'pending' RETURNING *`,
+    [req.params.id, req.user.id]
+  );
+  if (!result.rows.length) return res.status(404).json({ error: 'Request not found or already actioned' });
+
+  const buyer = await db.query(`SELECT name, email, company FROM users WHERE id = $1`, [req.user.id]);
+  const vendor = await db.query(`SELECT name, email, company FROM users WHERE id = $1`, [result.rows[0].vendor_employer_id]);
+  sendVendorLinkApproved(buyer.rows[0], vendor.rows[0]).catch(err => console.error('[vendor link email]', err.message));
+
+  res.json(result.rows[0]);
+});
+
+// POST /api/employer/vendors/:id/decline — buyer declines a pending request
+router.post('/vendors/:id/decline', auth, async (req, res) => {
+  if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const result = await db.query(
+    `UPDATE employer_vendor_links SET status = 'declined'
+     WHERE id = $1 AND buyer_employer_id = $2 AND status = 'pending' RETURNING *`,
+    [req.params.id, req.user.id]
+  );
+  if (!result.rows.length) return res.status(404).json({ error: 'Request not found or already actioned' });
+
+  const buyer = await db.query(`SELECT name, email, company FROM users WHERE id = $1`, [req.user.id]);
+  const vendor = await db.query(`SELECT name, email, company FROM users WHERE id = $1`, [result.rows[0].vendor_employer_id]);
+  sendVendorLinkDeclined(buyer.rows[0], vendor.rows[0]).catch(err => console.error('[vendor link email]', err.message));
+
+  res.json({ success: true });
+});
+
+// ── Vendor jobs — what an approved vendor can see and submit to ────────────
+
+// GET /api/employer/vendors/jobs — active jobs from buyers where I'm an approved vendor
+router.get('/vendors/jobs', auth, async (req, res) => {
+  if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const result = await db.query(
+    `SELECT j.id, j.title, j.description, j.location, j.work_requirement, j.is_public, j.created_at,
+            u.company, u.id AS buyer_employer_id,
+            EXISTS (
+              SELECT 1 FROM vendor_submissions vs WHERE vs.job_id = j.id AND vs.vendor_employer_id = $1
+            ) AS already_submitted
+     FROM jobs j
+     JOIN users u ON u.id = j.employer_id
+     JOIN employer_vendor_links l ON l.buyer_employer_id = j.employer_id AND l.vendor_employer_id = $1 AND l.status = 'approved'
+     WHERE j.status = 'active' AND (j.expires_at IS NULL OR j.expires_at > NOW())
+     ORDER BY j.created_at DESC`,
+    [req.user.id]
+  );
+  res.json(result.rows);
+});
+
+// POST /api/employer/vendors/jobs/:jobId/submissions — submit a candidate to a job I'm approved to supply
+router.post('/vendors/jobs/:jobId/submissions', auth, (req, res, next) => {
+  upload.single('resume')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    next();
+  });
+}, async (req, res) => {
+  if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const { candidateName, candidateEmail, candidatePhone, coverNote, resumeText } = req.body;
+  if (!candidateName || !candidateEmail) return res.status(400).json({ error: 'Candidate name and email are required' });
+
+  const jobResult = await db.query(
+    `SELECT j.id, j.title, j.employer_id, u.name AS buyer_name, u.email AS buyer_email, u.company
+     FROM jobs j
+     JOIN users u ON u.id = j.employer_id
+     JOIN employer_vendor_links l ON l.buyer_employer_id = j.employer_id AND l.vendor_employer_id = $1 AND l.status = 'approved'
+     WHERE j.id = $2 AND j.status = 'active'`,
+    [req.user.id, req.params.jobId]
+  );
+  if (!jobResult.rows.length) return res.status(404).json({ error: 'Not found, or you are not an approved vendor for this job' });
+  const job = jobResult.rows[0];
+
+  let parsedResumeText = resumeText?.trim() || null;
+  if (req.file) {
+    try {
+      parsedResumeText = await parseResumeFile(req.file.buffer, req.file.originalname);
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  }
+
+  try {
+    const result = await db.query(
+      `INSERT INTO vendor_submissions (job_id, vendor_employer_id, candidate_name, candidate_email, candidate_phone, resume_text, cover_note)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [job.id, req.user.id, candidateName, candidateEmail, candidatePhone || null, parsedResumeText, coverNote || null]
+    );
+
+    const vendor = await db.query(`SELECT name, email, company FROM users WHERE id = $1`, [req.user.id]);
+    await sendVendorSubmissionNotification(
+      { name: job.buyer_name, email: job.buyer_email },
+      vendor.rows[0],
+      job,
+      candidateName
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ error: 'You have already submitted this candidate for this job' });
+    throw err;
+  }
 });
 
 module.exports = router;

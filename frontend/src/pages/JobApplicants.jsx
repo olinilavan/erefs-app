@@ -18,6 +18,7 @@ export default function JobApplicants() {
   const [error, setError] = useState(false);
   const [matching, setMatching] = useState(false);
   const [matchError, setMatchError] = useState('');
+  const [expandedResume, setExpandedResume] = useState(null);
 
   function load() {
     api.get(`/api/employer/jobs/${id}/applicants`)
@@ -41,6 +42,14 @@ export default function JobApplicants() {
   }
 
   const hasAnyFitScore = data?.applicants.some(a => a.fit_score != null);
+
+  async function updateSubmissionStatus(submissionId, status) {
+    const r = await api.patch(`/api/employer/jobs/${id}/vendor-submissions/${submissionId}`, { status });
+    setData(d => ({
+      ...d,
+      vendorSubmissions: d.vendorSubmissions.map(s => s.id === submissionId ? r.data : s),
+    }));
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -101,15 +110,31 @@ export default function JobApplicants() {
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-3 mt-2">
+                    <div className="flex flex-wrap gap-3 mt-2 items-center">
                       {a.resume_url && (
                         <a href={normalizeUrl(a.resume_url)} target="_blank" rel="noopener noreferrer"
                           className="inline-block text-sm text-teal-600 hover:underline">
                           📄 View Resume Link →
                         </a>
                       )}
-                      {a.resume_text && <span className="text-xs text-gray-400">📄 Resume on file (uploaded/pasted)</span>}
+                      {a.resume_text && (
+                        <button
+                          onClick={() => setExpandedResume(expandedResume === a.id ? null : a.id)}
+                          className="text-sm text-teal-600 hover:underline"
+                        >
+                          📄 {expandedResume === a.id ? 'Hide Resume Text ▲' : 'View Resume Text ▼'}
+                        </button>
+                      )}
                     </div>
+
+                    {a.resume_text && expandedResume === a.id && (
+                      <div className="mt-2 bg-gray-50 rounded-lg px-3 py-2.5 border border-gray-100">
+                        <p className="text-xs text-gray-400 mb-1.5">
+                          Extracted from the candidate's uploaded/pasted resume — plain text only, original formatting (columns, styling, layout) is not preserved.
+                        </p>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{a.resume_text}</p>
+                      </div>
+                    )}
 
                     {a.message && (
                       <p className="text-sm text-gray-600 mt-2 bg-gray-50 rounded-lg px-3 py-2">{a.message}</p>
@@ -119,6 +144,52 @@ export default function JobApplicants() {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+
+            {data.vendorSubmissions?.length > 0 && (
+              <div className="mt-10">
+                <h2 className="font-semibold text-gray-800 mb-1">Vendor Submissions</h2>
+                <p className="text-gray-500 text-sm mb-4">
+                  Candidates submitted by your approved vendors.
+                </p>
+                <div className="space-y-3">
+                  {data.vendorSubmissions.map(s => (
+                    <div key={s.id} className="bg-white rounded-xl border border-purple-100 px-5 py-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="font-medium">{s.candidate_name}</div>
+                          <div className="text-sm text-gray-400">{s.candidate_email}{s.candidate_phone ? ` · ${s.candidate_phone}` : ''}</div>
+                          <div className="text-xs text-purple-600 mt-0.5">via {s.vendor_company || s.vendor_name}</div>
+                        </div>
+                        <span className="text-xs text-gray-400 whitespace-nowrap">{new Date(s.created_at).toLocaleDateString()}</span>
+                      </div>
+
+                      {s.resume_text && (
+                        <div className="mt-2 bg-gray-50 rounded-lg px-3 py-2.5 border border-gray-100">
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap">{s.resume_text}</p>
+                        </div>
+                      )}
+                      {s.cover_note && (
+                        <p className="text-sm text-gray-600 mt-2 bg-gray-50 rounded-lg px-3 py-2">{s.cover_note}</p>
+                      )}
+
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                        <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-purple-100 text-purple-700 capitalize">{s.status}</span>
+                        <div className="flex gap-3">
+                          {s.status !== 'shortlisted' && s.status !== 'hired' && (
+                            <button onClick={() => updateSubmissionStatus(s.id, 'shortlisted')}
+                              className="text-xs text-teal-600 hover:underline font-medium">Shortlist</button>
+                          )}
+                          {s.status !== 'rejected' && (
+                            <button onClick={() => updateSubmissionStatus(s.id, 'rejected')}
+                              className="text-xs text-red-500 hover:underline font-medium">Reject</button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </>

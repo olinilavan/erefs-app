@@ -46,6 +46,7 @@ export default function Settings() {
       years_experience: form.years_experience,
       location: form.location,
       availability: form.availability,
+      default_job_is_public: form.default_job_is_public,
     });
     setSaving(false);
     setSaved(true);
@@ -156,6 +157,24 @@ export default function Settings() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Vendor network — employer only */}
+          {user?.role === 'employer' && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+              <h2 className="font-semibold text-gray-800">Vendor Network</h2>
+
+              <Toggle
+                enabled={form.default_job_is_public !== false}
+                onChange={v => setForm({ ...form, default_job_is_public: v })}
+                label="New jobs default to Open to Public"
+                description="When off, new job postings default to Vendor Only instead. You can still change this per posting."
+              />
+
+              <Link to="/employer/vendor-network" className="text-sm text-teal-600 hover:underline font-medium inline-block">
+                Manage Vendor Network →
+              </Link>
             </div>
           )}
 

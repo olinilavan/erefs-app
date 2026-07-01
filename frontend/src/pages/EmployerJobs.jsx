@@ -27,12 +27,12 @@ function ConfirmModal({ message, onConfirm, onCancel }) {
   );
 }
 
-function JobForm({ initial, onSubmit, onCancel, submitLabel }) {
+function JobForm({ initial, defaultIsPublic, onSubmit, onCancel, submitLabel }) {
   const [title, setTitle] = useState(initial?.title || '');
   const [description, setDescription] = useState(initial?.description || '');
   const [location, setLocation] = useState(initial?.location || '');
   const [workRequirement, setWorkRequirement] = useState(initial?.work_requirement || '');
-  const [isPublic, setIsPublic] = useState(initial?.is_public || false);
+  const [isPublic, setIsPublic] = useState(initial ? !!initial.is_public : defaultIsPublic !== false);
   const [expiresAt, setExpiresAt] = useState(initial?.expires_at ? initial.expires_at.slice(0, 10) : '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -74,11 +74,22 @@ function JobForm({ initial, onSubmit, onCancel, submitLabel }) {
           className="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
         <p className="text-xs text-gray-400 mt-1">Optional — leave blank for no expiration. Expired postings are hidden from Open Roles automatically.</p>
       </div>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)}
-          className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
-        Show on the public Open Roles page
-      </label>
+      <div>
+        <label className="block text-sm text-gray-600 mb-1">Visibility</label>
+        <div className="flex bg-gray-100 rounded-lg p-1 max-w-xs">
+          {[[true, 'Open to Public'], [false, 'Vendor Only']].map(([val, label]) => (
+            <button key={label} type="button" onClick={() => setIsPublic(val)}
+              className={`flex-1 py-2 rounded-md text-sm font-medium transition ${isPublic === val ? 'bg-white shadow text-teal-700' : 'text-gray-500'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-gray-400 mt-1">
+          {isPublic
+            ? 'Shown on the public Open Roles page — anyone can apply.'
+            : 'Hidden from Open Roles — only your approved vendors can see and submit candidates.'}
+        </p>
+      </div>
       <div className="flex gap-3">
         <button type="submit" disabled={saving}
           className="bg-teal-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-teal-700 transition disabled:opacity-50">
@@ -194,10 +205,11 @@ function JobCard({ job, onUpdated, onDeleted }) {
             Edit
           </button>
           <button onClick={togglePublic} className="text-xs text-gray-500 hover:text-teal-600 transition">
-            {job.is_public ? '✓ On Open Roles' : 'Not Public'}
+            {job.is_public ? '✓ Open to Public' : 'Vendor Only'}
           </button>
           {!job.flash_status && (
-            <button onClick={requestFlash} className="text-xs text-orange-600 hover:text-orange-800 transition">
+            <button onClick={requestFlash} title="Flash Jobs are always public"
+              className="text-xs text-orange-600 hover:text-orange-800 transition">
               🔥 Make Flash Job
             </button>
           )}
@@ -217,6 +229,7 @@ export default function EmployerJobs() {
   const [jobs, setJobs] = useState([]);
   const [showNew, setShowNew] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [defaultIsPublic, setDefaultIsPublic] = useState(true);
 
   function load() {
     api.get('/api/employer/jobs').then(r => {
@@ -225,7 +238,10 @@ export default function EmployerJobs() {
     });
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    api.get('/api/settings').then(r => setDefaultIsPublic(r.data.default_job_is_public !== false));
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -240,6 +256,10 @@ export default function EmployerJobs() {
             <Link to="/employer/dashboard" className="text-sm text-teal-600 hover:underline">← Candidate Pipeline</Link>
             <h1 className="text-2xl font-bold mt-2">Job Postings</h1>
             <p className="text-gray-500 text-sm mt-1">Post openings and review applicants.</p>
+            <div className="flex gap-4 mt-2">
+              <Link to="/employer/vendor-network" className="text-xs text-teal-600 hover:underline">Vendor Network →</Link>
+              <Link to="/employer/vendor-jobs" className="text-xs text-teal-600 hover:underline">Vendor Jobs →</Link>
+            </div>
           </div>
           {!showNew && (
             <button onClick={() => setShowNew(true)}
@@ -254,6 +274,7 @@ export default function EmployerJobs() {
             <h2 className="font-semibold mb-4">New Job Posting</h2>
             <JobForm
               submitLabel="Post Job"
+              defaultIsPublic={defaultIsPublic}
               onSubmit={async data => {
                 await api.post('/api/employer/jobs', data);
                 setShowNew(false);

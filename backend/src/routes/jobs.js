@@ -70,7 +70,7 @@ router.get('/flash', optionalAuth, async (req, res) => {
        ) AS already_applied
      FROM jobs j
      JOIN users u ON u.id = j.employer_id
-     WHERE j.flash_status = 'active' AND j.status = 'active'
+     WHERE j.flash_status = 'active' AND j.status = 'active' AND j.is_public = true
        AND j.flash_expires_at > NOW()
        AND (j.expires_at IS NULL OR j.expires_at > NOW())
      ORDER BY j.flash_activated_at DESC

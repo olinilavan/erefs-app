@@ -23,6 +23,8 @@ import SampleReport from './pages/SampleReport';
 import Settings from './pages/Settings';
 import Terms from './pages/Terms';
 import AdminDashboard from './pages/AdminDashboard';
+import EmployerVendorNetwork from './pages/EmployerVendorNetwork';
+import EmployerVendorJobs from './pages/EmployerVendorJobs';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import VerifyEmail from './pages/VerifyEmail';
@@ -73,6 +75,8 @@ export default function App() {
         <Route path="/employer/talent" element={<PrivateRoute role="employer"><TalentDirectory /></PrivateRoute>} />
         <Route path="/employer/jobs" element={<PrivateRoute role="employer"><EmployerJobs /></PrivateRoute>} />
         <Route path="/employer/jobs/:id/applicants" element={<PrivateRoute role="employer"><JobApplicants /></PrivateRoute>} />
+        <Route path="/employer/vendor-network" element={<PrivateRoute role="employer"><EmployerVendorNetwork /></PrivateRoute>} />
+        <Route path="/employer/vendor-jobs" element={<PrivateRoute role="employer"><EmployerVendorJobs /></PrivateRoute>} />
 
         {/* Admin */}
         <Route path="/admin" element={<PrivateRoute adminOnly><AdminDashboard /></PrivateRoute>} />

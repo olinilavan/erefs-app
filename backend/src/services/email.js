@@ -366,4 +366,114 @@ async function sendAdminReminderReport(stats) {
   }
 }
 
-module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendCandidateProfileInvite, sendEmployerContactRequest, sendNewApplicantNotification, sendAdminReminderReport };
+async function sendVendorLinkRequest(buyer, vendor) {
+  console.log(`\n[DEV] Vendor link request: ${vendor.company || vendor.name} → ${buyer.company || buyer.name}\n`);
+  if (isDev) return;
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: buyer.email,
+    subject: `${vendor.company || vendor.name} wants to become your vendor`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a2e;">New vendor request</h2>
+        <p><strong>${vendor.company || vendor.name}</strong> (${vendor.email}) has requested to become an approved vendor on your job postings.</p>
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${BASE_URL}/employer/vendor-network" style="background: #0f766e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+            Review Request
+          </a>
+        </p>
+      </div>
+    `,
+  });
+
+  if (error) console.error('[vendor link request email failed]', error);
+  else console.log('[vendor link request email sent]', data?.id, '→', buyer.email);
+}
+
+async function sendVendorLinkApproved(buyer, vendor) {
+  console.log(`\n[DEV] Vendor link approved: ${vendor.company || vendor.name} ↔ ${buyer.company || buyer.name}\n`);
+  if (isDev) return;
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: vendor.email,
+    subject: `You're now an approved vendor for ${buyer.company || buyer.name}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #0f766e;">Vendor request approved</h2>
+        <p>You're now an approved vendor for <strong>${buyer.company || buyer.name}</strong> — you can view their job postings and submit candidates.</p>
+      </div>
+    `,
+  });
+
+  if (error) console.error('[vendor link approved email failed]', error);
+  else console.log('[vendor link approved email sent]', data?.id, '→', vendor.email);
+}
+
+async function sendVendorLinkDeclined(buyer, vendor) {
+  console.log(`\n[DEV] Vendor link declined: ${vendor.company || vendor.name} ✗ ${buyer.company || buyer.name}\n`);
+  if (isDev) return;
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: vendor.email,
+    subject: `Your vendor request was not approved`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a2e;">Vendor request declined</h2>
+        <p>Your request to become a vendor for <strong>${buyer.company || buyer.name}</strong> was not approved.</p>
+      </div>
+    `,
+  });
+
+  if (error) console.error('[vendor link declined email failed]', error);
+  else console.log('[vendor link declined email sent]', data?.id, '→', vendor.email);
+}
+
+async function sendVendorLinkRevoked(recipient, otherParty) {
+  console.log(`\n[DEV] Vendor link revoked for ${recipient.name} (↔ ${otherParty.company || otherParty.name})\n`);
+  if (isDev) return;
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: recipient.email,
+    subject: `Your vendor link with ${otherParty.company || otherParty.name} was removed`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a2e;">Vendor link removed</h2>
+        <p>Your vendor link with <strong>${otherParty.company || otherParty.name}</strong> has been revoked.</p>
+      </div>
+    `,
+  });
+
+  if (error) console.error('[vendor link revoked email failed]', error);
+  else console.log('[vendor link revoked email sent]', data?.id, '→', recipient.email);
+}
+
+async function sendVendorSubmissionNotification(buyer, vendor, job, candidateName) {
+  console.log(`\n[DEV] Vendor submission: ${vendor.company || vendor.name} submitted ${candidateName} for "${job.title}"\n`);
+  if (isDev) return;
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: buyer.email,
+    subject: `New vendor submission for "${job.title}"`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a2e;">New candidate submitted</h2>
+        <p><strong>${vendor.company || vendor.name}</strong> submitted <strong>${candidateName}</strong> for your posting "${job.title}".</p>
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${BASE_URL}/employer/jobs/${job.id}/applicants" style="background: #0f766e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+            Review Submission
+          </a>
+        </p>
+      </div>
+    `,
+  });
+
+  if (error) console.error('[vendor submission email failed]', error);
+  else console.log('[vendor submission email sent]', data?.id, '→', buyer.email);
+}
+
+module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendCandidateProfileInvite, sendEmployerContactRequest, sendNewApplicantNotification, sendAdminReminderReport, sendVendorLinkRequest, sendVendorLinkApproved, sendVendorLinkDeclined, sendVendorLinkRevoked, sendVendorSubmissionNotification };
