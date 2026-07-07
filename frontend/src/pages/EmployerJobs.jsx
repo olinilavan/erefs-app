@@ -207,8 +207,8 @@ function JobCard({ job, onUpdated, onDeleted }) {
           <button onClick={togglePublic} className="text-xs text-gray-500 hover:text-teal-600 transition">
             {job.is_public ? '✓ Open to Public' : 'Vendor Only'}
           </button>
-          {!job.flash_status && (
-            <button onClick={requestFlash} title="Flash Jobs are always public"
+          {!job.flash_status && job.is_public && (
+            <button onClick={requestFlash}
               className="text-xs text-orange-600 hover:text-orange-800 transition">
               🔥 Make Flash Job
             </button>
