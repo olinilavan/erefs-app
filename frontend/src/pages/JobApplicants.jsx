@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api';
-import Logo from '../components/Logo';
-import AccountDropdown from '../components/AccountDropdown';
+import EmployerNav from '../components/EmployerNav';
 import { normalizeUrl } from '../utils/url';
 
 function fitColor(score) {
@@ -53,10 +52,7 @@ export default function JobApplicants() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center">
-        <Logo to="/employer/dashboard" />
-        <AccountDropdown />
-      </nav>
+      <EmployerNav />
 
       <main className="max-w-3xl mx-auto px-8 py-10">
         <Link to="/employer/jobs" className="text-sm text-teal-600 hover:underline">← Job Postings</Link>

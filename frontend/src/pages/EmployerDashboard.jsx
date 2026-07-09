@@ -1,9 +1,7 @@
-import Logo from '../components/Logo';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
-import { useAuth } from '../context/AuthContext';
-import AccountDropdown from '../components/AccountDropdown';
+import EmployerNav from '../components/EmployerNav';
 import { normalizeUrl } from '../utils/url';
 
 const STATUS_STYLE = {
@@ -33,7 +31,6 @@ function ConfirmModal({ message, onConfirm, onCancel }) {
 }
 
 export default function EmployerDashboard() {
-  const { user } = useAuth();
   const [tab, setTab] = useState('active');
   const [candidates, setCandidates] = useState([]);
   const [showNewRequest, setShowNewRequest] = useState(false);
@@ -97,24 +94,7 @@ export default function EmployerDashboard() {
         />
       )}
 
-      <nav className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center">
-        <Logo to="/employer/dashboard" />
-        <div className="flex items-center gap-5">
-          <Link to="/employer/talent" className="text-sm text-gray-600 hover:text-teal-600 font-medium">
-            🔍 Talent Directory
-          </Link>
-          <Link to="/employer/jobs" className="text-sm text-gray-600 hover:text-teal-600 font-medium">
-            📋 Job Postings
-          </Link>
-          <Link to="/employer/vendor-jobs" className="text-sm text-gray-600 hover:text-teal-600 font-medium">
-            🔗 Vendor Jobs
-          </Link>
-          <Link to="/jobs" className="text-sm text-gray-600 hover:text-teal-600 font-medium">
-            Open Roles
-          </Link>
-          <AccountDropdown />
-        </div>
-      </nav>
+      <EmployerNav />
 
       <main className="max-w-5xl mx-auto px-8 py-10">
         <div className="flex justify-between items-center mb-8">

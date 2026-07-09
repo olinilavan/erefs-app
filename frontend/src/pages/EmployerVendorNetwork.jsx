@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
-import Logo from '../components/Logo';
-import AccountDropdown from '../components/AccountDropdown';
+import EmployerNav from '../components/EmployerNav';
 import Tooltip from '../components/Tooltip';
 
 const LINK_STATUS_BADGE = {
@@ -54,10 +53,7 @@ export default function EmployerVendorNetwork() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center">
-        <Logo to="/employer/dashboard" />
-        <AccountDropdown />
-      </nav>
+      <EmployerNav />
 
       <main className="max-w-4xl mx-auto px-8 py-10">
         <Link to="/employer/dashboard" className="text-sm text-teal-600 hover:underline">← Dashboard</Link>
