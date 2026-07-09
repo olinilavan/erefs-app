@@ -182,9 +182,6 @@ export default function Landing() {
 
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-8 pt-20 pb-16 text-center">
-        <div className="inline-block px-4 py-1 bg-teal-50 text-teal-600 rounded-full text-sm font-medium mb-6 border border-teal-100">
-          Now in Beta — Free to use
-        </div>
         <h1 className="text-5xl font-bold leading-tight mb-6 text-gray-900">
           Professional references that<br />
           <span className="text-teal-600">actually tell you something</span>
@@ -331,11 +328,11 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Beta CTA */}
+      {/* CTA */}
       <section className="max-w-3xl mx-auto px-8 py-20 text-center">
-        <h2 className="text-3xl font-bold mb-4">Join the beta — it's free</h2>
+        <h2 className="text-3xl font-bold mb-4">Replace reference calls with real insight</h2>
         <p className="text-gray-500 mb-8 text-lg">
-          VouchMetrics is free during beta. Be among the first teams to replace reference calls with real insight.
+          Structured feedback and instant AI reports — so hiring teams get clarity and candidates get a voice.
         </p>
         <Link to="/register"
           className="inline-block px-8 py-4 bg-teal-600 text-white rounded-xl font-bold text-lg hover:bg-teal-700 transition shadow-sm">

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../api';
 import Logo from '../components/Logo';
 import AccountDropdown from '../components/AccountDropdown';
+import Tooltip from '../components/Tooltip';
 
 const WORK_REQUIREMENTS = ['US Citizen', 'Green Card', 'H1B Sponsorship Available', 'Any'];
 
@@ -75,7 +76,12 @@ function JobForm({ initial, defaultIsPublic, onSubmit, onCancel, submitLabel }) 
         <p className="text-xs text-gray-400 mt-1">Optional — leave blank for no expiration. Expired postings are hidden from Open Roles automatically.</p>
       </div>
       <div>
-        <label className="block text-sm text-gray-600 mb-1">Visibility</label>
+        <div className="flex items-center gap-1.5 mb-1">
+          <label className="text-sm text-gray-600">Visibility</label>
+          <Tooltip text="Open to Public appears on the public Open Roles page and can be boosted with Flash. Vendor Only is hidden from the public — only your approved vendors can see it and submit candidates.">
+            <span className="text-gray-400 cursor-default text-xs leading-none">ⓘ</span>
+          </Tooltip>
+        </div>
         <div className="flex bg-gray-100 rounded-lg p-1 max-w-xs">
           {[[true, 'Open to Public'], [false, 'Vendor Only']].map(([val, label]) => (
             <button key={label} type="button" onClick={() => setIsPublic(val)}
@@ -208,10 +214,12 @@ function JobCard({ job, onUpdated, onDeleted }) {
             {job.is_public ? '✓ Open to Public' : 'Vendor Only'}
           </button>
           {!job.flash_status && job.is_public && (
-            <button onClick={requestFlash}
-              className="text-xs text-orange-600 hover:text-orange-800 transition">
-              🔥 Make Flash Job
-            </button>
+            <Tooltip text="Paid featured placement on the home page for 7 days. Payment is confirmed manually — we'll follow up after you request.">
+              <button onClick={requestFlash}
+                className="text-xs text-orange-600 hover:text-orange-800 transition">
+                🔥 Make Flash Job
+              </button>
+            </Tooltip>
           )}
           <button onClick={toggleStatus} className="text-xs text-gray-500 hover:text-gray-700 transition">
             {job.status === 'active' ? 'Close' : 'Reopen'}

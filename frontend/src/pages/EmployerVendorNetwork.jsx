@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../api';
 import Logo from '../components/Logo';
 import AccountDropdown from '../components/AccountDropdown';
+import Tooltip from '../components/Tooltip';
 
 const LINK_STATUS_BADGE = {
   pending:  'bg-yellow-100 text-yellow-700',
@@ -143,10 +144,12 @@ export default function EmployerVendorNetwork() {
                   {e.link_status ? (
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${LINK_STATUS_BADGE[e.link_status]}`}>{e.link_status}</span>
                   ) : (
-                    <button onClick={() => sendRequest(e.id)} disabled={requesting[e.id]}
-                      className="text-xs bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 font-medium disabled:opacity-50">
-                      {requesting[e.id] ? 'Sending…' : 'Request to be their Vendor'}
-                    </button>
+                    <Tooltip text="Once approved, their job postings will appear under Vendor Jobs and you can submit candidates directly.">
+                      <button onClick={() => sendRequest(e.id)} disabled={requesting[e.id]}
+                        className="text-xs bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 font-medium disabled:opacity-50">
+                        {requesting[e.id] ? 'Sending…' : 'Request to be their Vendor'}
+                      </button>
+                    </Tooltip>
                   )}
                 </div>
               ))}

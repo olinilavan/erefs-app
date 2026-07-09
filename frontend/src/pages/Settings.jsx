@@ -4,6 +4,7 @@ import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import AccountDropdown from '../components/AccountDropdown';
 import Logo from '../components/Logo';
+import Tooltip from '../components/Tooltip';
 
 function Toggle({ enabled, onChange, label, description }) {
   return (
@@ -102,10 +103,14 @@ export default function Settings() {
                     placeholder="e.g. Senior Software Engineer" />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">Your VM ID</label>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <label className="text-sm text-gray-600">Your VM ID</label>
+                    <Tooltip text="A non-identifying code generated for you automatically. Share it with recruiters or employers instead of your real name — they search for it in the Talent Directory.">
+                      <span className="text-gray-400 cursor-default text-xs leading-none">ⓘ</span>
+                    </Tooltip>
+                  </div>
                   <input value={form.vm_id || ''} disabled
                     className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-gray-50 text-gray-400 cursor-not-allowed font-mono" />
-                  <p className="text-xs text-gray-400 mt-1">A non-identifying reference code you can share with recruiters instead of your name.</p>
                 </div>
               </>
             )}
@@ -116,12 +121,21 @@ export default function Settings() {
             <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
               <h2 className="font-semibold text-gray-800">Reference Preferences</h2>
 
-              <Toggle
-                enabled={form.require_work_email}
-                onChange={v => setForm({ ...form, require_work_email: v })}
-                label="Work email only"
-                description="Only accept responses from corporate email addresses (no Gmail, Yahoo, etc.)"
-              />
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium text-gray-700">Work email only</span>
+                    <Tooltip text="Referrers using Gmail, Yahoo, Hotmail, or other personal email providers will be blocked from submitting a response. Useful when you need verifiable corporate identity.">
+                      <span className="text-gray-400 cursor-default text-xs leading-none">ⓘ</span>
+                    </Tooltip>
+                  </div>
+                  <div className="text-xs text-gray-400 mt-0.5">Only accept responses from corporate email addresses (no Gmail, Yahoo, etc.)</div>
+                </div>
+                <button type="button" onClick={() => setForm({ ...form, require_work_email: !form.require_work_email })}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full transition-colors duration-200 focus:outline-none ${form.require_work_email ? 'bg-teal-600' : 'bg-gray-200'}`}>
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 mt-0.5 ${form.require_work_email ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
 
               <Toggle
                 enabled={form.wants_custom_questions}
@@ -235,7 +249,12 @@ export default function Settings() {
           {/* Reference preferences — jobseeker only */}
           {user?.role === 'jobseeker' && (
             <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-3">
-              <h2 className="font-semibold text-gray-800">Share Link Expiration</h2>
+              <div className="flex items-center gap-1.5">
+                <h2 className="font-semibold text-gray-800">Share Link Expiration</h2>
+                <Tooltip text="Your report share links (single or combined) stop working after this period. If someone tries to open an expired link they'll see an error. Start a new referral request to get a fresh link.">
+                  <span className="text-gray-400 cursor-default text-xs leading-none">ⓘ</span>
+                </Tooltip>
+              </div>
               <p className="text-xs text-gray-400">
                 Report share links (single and combined) stop working after this period. Generate a new request to get a fresh link.
               </p>
