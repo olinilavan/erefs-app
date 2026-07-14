@@ -25,6 +25,8 @@ import Terms from './pages/Terms';
 import AdminDashboard from './pages/AdminDashboard';
 import EmployerVendorNetwork from './pages/EmployerVendorNetwork';
 import EmployerVendorJobs from './pages/EmployerVendorJobs';
+import BackgroundCheckForm from './pages/BackgroundCheckForm';
+import BackgroundCheckDetail from './pages/BackgroundCheckDetail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import VerifyEmail from './pages/VerifyEmail';
@@ -77,6 +79,10 @@ export default function App() {
         <Route path="/employer/jobs/:id/applicants" element={<PrivateRoute role="employer"><JobApplicants /></PrivateRoute>} />
         <Route path="/employer/vendor-network" element={<PrivateRoute role="employer"><EmployerVendorNetwork /></PrivateRoute>} />
         <Route path="/employer/vendor-jobs" element={<PrivateRoute role="employer"><EmployerVendorJobs /></PrivateRoute>} />
+        <Route path="/employer/bg-checks/:id" element={<PrivateRoute role="employer"><BackgroundCheckDetail /></PrivateRoute>} />
+
+        {/* Public candidate bg check form */}
+        <Route path="/bg/:token" element={<BackgroundCheckForm />} />
 
         {/* Admin */}
         <Route path="/admin" element={<PrivateRoute adminOnly><AdminDashboard /></PrivateRoute>} />

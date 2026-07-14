@@ -476,4 +476,88 @@ async function sendVendorSubmissionNotification(buyer, vendor, job, candidateNam
   else console.log('[vendor submission email sent]', data?.id, '→', buyer.email);
 }
 
-module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendCandidateProfileInvite, sendEmployerContactRequest, sendNewApplicantNotification, sendAdminReminderReport, sendVendorLinkRequest, sendVendorLinkApproved, sendVendorLinkDeclined, sendVendorLinkRevoked, sendVendorSubmissionNotification };
+async function sendBgCheckInvite(candidate, employer, token, checks, deadlineDays) {
+  const checkList = [
+    checks.reference && 'Reference Check',
+    checks.education && 'Education Verification',
+    checks.criminal  && 'Criminal Background Check',
+  ].filter(Boolean).join(', ');
+  const link = `${BASE_URL}/bg/${token}`;
+  console.log(`\n[DEV] BG check invite → ${candidate.email}\nChecks: ${checkList}\nLink: ${link}\n`);
+  if (isDev) return;
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: candidate.email,
+    subject: `Background check request from ${employer.company || employer.name}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a2e;">Background check requested</h2>
+        <p>Hi ${candidate.name},</p>
+        <p><strong>${employer.company || employer.name}</strong> has requested a background check as part of your application for <strong>${candidate.role || 'a role'}</strong>.</p>
+        <p>Checks requested: <strong>${checkList}</strong></p>
+        <p>Please complete this within <strong>${deadlineDays} days</strong>.</p>
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${link}" style="background: #0f766e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+            Complete Background Check
+          </a>
+        </p>
+      </div>
+    `,
+  });
+
+  if (error) console.error('[bg check invite failed]', error);
+  else console.log('[bg check invite sent]', data?.id, '→', candidate.email);
+}
+
+async function sendBgCheckSubmitted(employer, candidate) {
+  console.log(`\n[DEV] BG check submitted by ${candidate.email} → notify ${employer.email}\n`);
+  if (isDev) return;
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: employer.email,
+    subject: `${candidate.name} completed their background check`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a2e;">Background check submitted</h2>
+        <p><strong>${candidate.name}</strong> has submitted their background check information for <strong>${candidate.role || 'the role'}</strong>.</p>
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${BASE_URL}/employer/bg-checks/${candidate.checkId}" style="background: #0f766e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+            View Background Check
+          </a>
+        </p>
+      </div>
+    `,
+  });
+
+  if (error) console.error('[bg check submitted email failed]', error);
+  else console.log('[bg check submitted email sent]', data?.id, '→', employer.email);
+}
+
+async function sendBgCheckDeclined(employer, candidate) {
+  console.log(`\n[DEV] BG check declined by ${candidate.email} → notify ${employer.email}\n`);
+  if (isDev) return;
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: employer.email,
+    subject: `${candidate.name} declined the background check`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a2e;">Background check declined</h2>
+        <p><strong>${candidate.name}</strong> has declined to complete the background check for <strong>${candidate.role || 'the role'}</strong>.</p>
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${BASE_URL}/employer/bg-checks/${candidate.checkId}" style="background: #0f766e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+            View Details
+          </a>
+        </p>
+      </div>
+    `,
+  });
+
+  if (error) console.error('[bg check declined email failed]', error);
+  else console.log('[bg check declined email sent]', data?.id, '→', employer.email);
+}
+
+module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendCandidateProfileInvite, sendEmployerContactRequest, sendNewApplicantNotification, sendAdminReminderReport, sendVendorLinkRequest, sendVendorLinkApproved, sendVendorLinkDeclined, sendVendorLinkRevoked, sendVendorSubmissionNotification, sendBgCheckInvite, sendBgCheckSubmitted, sendBgCheckDeclined };
