@@ -363,8 +363,8 @@ export default function Landing() {
 
       {/* AI Reports showcase */}
       <section className="max-w-5xl mx-auto px-8 py-20">
-        <h2 className="text-3xl font-bold text-center mb-3">Two AI reports. Complete candidate clarity.</h2>
-        <p className="text-gray-500 text-center mb-10 max-w-2xl mx-auto">Every hire decision backed by data — from the first application to the final reference check.</p>
+        <h2 className="text-3xl font-bold text-center mb-3">AI-driven insights at every stage of hiring.</h2>
+        <p className="text-gray-500 text-center mb-10 max-w-2xl mx-auto">From the first application to the final reference check — every decision backed by structured data and AI intelligence.</p>
 
         <AIReportsShowcase />
       </section>
