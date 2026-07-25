@@ -5,25 +5,157 @@ import Logo from '../components/Logo';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 
+const SAMPLE_JOB_MATCH = {
+  candidateName: 'James Rivera',
+  role: 'DevOps / Platform Engineer',
+  fitScore: 87,
+  rationale: 'Strong Kubernetes and AWS background directly matches the role requirements. Quantified achievements demonstrate real-world impact at scale. Green Card satisfies the work authorisation requirement.',
+  highlights: [
+    'AWS Certified · 6 years running Kubernetes clusters at 99.98% uptime',
+    'Reduced deployment time 70% via GitHub Actions — aligns with CI/CD focus',
+    'Built internal observability platform (Grafana + Prometheus) as listed in JD',
+  ],
+  appliedDate: 'Jul 22, 2026',
+};
+
 const HOW_IT_WORKS = [
-  { step: '01', title: 'Request references', desc: 'Enter the candidate details and invite referees by email. Each referee gets a secure, unique link.' },
-  { step: '02', title: 'Referees respond', desc: '10 structured questions covering performance, teamwork, communication and growth — takes 5 minutes.' },
-  { step: '03', title: 'Get your AI report', desc: 'The moment a referee submits, an AI-generated report is ready — scores, insights, and notable quotes.' },
+  { step: '01', title: 'Post roles & source talent', desc: 'Publish job openings to active candidates, browse the talent directory, and use Flash Jobs for urgent featured placement.' },
+  { step: '02', title: 'Verify candidates thoroughly', desc: 'Run reference checks, education verification, and criminal background checks — all from one dashboard. Candidates fill in their own details.' },
+  { step: '03', title: 'Collaborate with vendors', desc: 'Build a trusted staffing vendor network, receive candidate submissions from agencies, and manage everything without switching tools.' },
 ];
 
 const EMPLOYER_BENEFITS = [
-  'Replace unstructured phone calls with consistent data',
-  'Compare candidates objectively with standardised scores',
-  'Reports ready in minutes, not days',
-  'Full candidate pipeline in one dashboard',
+  'Post jobs and manage applicants in one dashboard',
+  'Run background checks — references, education, and criminal',
+  'AI-powered reference reports with scores and insights, ready in minutes',
+  'Build a vendor network and receive staffing agency submissions',
 ];
 
 const SEEKER_BENEFITS = [
-  'Know exactly what your references are saying',
-  'Share a polished report with any employer instantly',
-  'One link — no more chasing referees per application',
-  'Build a reusable reference profile over your career',
+  'Browse open roles and apply directly from the platform',
+  'Get discovered by employers looking for talent like you',
+  'Build a reusable reference profile that travels with every application',
+  'Know exactly what your references are saying before employers do',
 ];
+
+function AIReportsShowcase() {
+  const [tab, setTab] = useState('match');
+
+  return (
+    <div>
+      {/* Tab toggle */}
+      <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-fit mx-auto">
+        {[
+          ['match', '🤖 Job Match Report'],
+          ['reference', '📋 Reference Report'],
+        ].map(([key, label]) => (
+          <button key={key} onClick={() => setTab(key)}
+            className={`px-5 py-2 rounded-lg text-sm font-medium transition ${tab === key ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'match' ? (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+          {/* Header */}
+          <div className="p-6 border-b border-gray-100 flex justify-between items-start">
+            <div>
+              <div className="text-xs font-medium text-teal-600 bg-teal-50 px-3 py-1 rounded-full border border-teal-100 inline-block mb-2">Sample · Job Match Report</div>
+              <h3 className="font-bold text-lg">{SAMPLE_JOB_MATCH.candidateName}</h3>
+              <p className="text-gray-500 text-sm">{SAMPLE_JOB_MATCH.role} · Applied {SAMPLE_JOB_MATCH.appliedDate}</p>
+            </div>
+            <div className={`text-center rounded-xl px-5 py-2 border font-bold ${
+              SAMPLE_JOB_MATCH.fitScore >= 80 ? 'bg-green-50 border-green-100 text-green-700' : 'bg-yellow-50 border-yellow-100 text-yellow-700'
+            }`}>
+              <div className="text-2xl">{SAMPLE_JOB_MATCH.fitScore}</div>
+              <div className="text-xs font-normal text-gray-500">Fit Score</div>
+            </div>
+          </div>
+
+          {/* Fit bar */}
+          <div className="px-6 pt-5 pb-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Overall Match</p>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 bg-gray-100 rounded-full h-3">
+                <div className="bg-green-500 h-3 rounded-full transition-all" style={{ width: `${SAMPLE_JOB_MATCH.fitScore}%` }} />
+              </div>
+              <span className="text-sm font-bold text-green-700">{SAMPLE_JOB_MATCH.fitScore}%</span>
+            </div>
+          </div>
+
+          {/* Rationale */}
+          <div className="px-6 py-4 border-t border-gray-100 bg-teal-50">
+            <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide mb-2">AI Rationale</p>
+            <p className="text-gray-700 text-sm leading-relaxed">{SAMPLE_JOB_MATCH.rationale}</p>
+          </div>
+
+          {/* Highlights */}
+          <div className="p-6 border-t border-gray-100">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Key Match Points</p>
+            <ul className="space-y-2">
+              {SAMPLE_JOB_MATCH.highlights.map(h => (
+                <li key={h} className="flex items-start gap-2 text-sm text-gray-700">
+                  <span className="text-green-500 mt-0.5 flex-shrink-0">✓</span>{h}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+          {/* Header */}
+          <div className="p-6 border-b border-gray-100 flex justify-between items-start">
+            <div>
+              <div className="text-xs font-medium text-teal-600 bg-teal-50 px-3 py-1 rounded-full border border-teal-100 inline-block mb-2">Sample · Reference Report</div>
+              <h3 className="font-bold text-lg">{SAMPLE.candidate_name}</h3>
+              <p className="text-gray-500 text-sm">{SAMPLE.target_role} · Reference by {SAMPLE.referrer_name}</p>
+            </div>
+            <div className="text-center bg-teal-50 rounded-xl px-5 py-2 border border-teal-100">
+              <div className="text-2xl font-bold text-teal-700">{SAMPLE.llm_output_json.confidenceScore}%</div>
+              <div className="text-xs text-gray-500">Confidence</div>
+            </div>
+          </div>
+
+          {/* Executive summary */}
+          <div className="p-6 border-b border-gray-100 bg-teal-50">
+            <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide mb-2">Executive Summary</p>
+            <p className="text-gray-700 text-sm leading-relaxed">{SAMPLE.llm_output_json.executiveSummary}</p>
+          </div>
+
+          {/* Scores */}
+          <div className="p-6 border-b border-gray-100">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Competency Scores</p>
+            <div className="space-y-3">
+              {Object.entries(SAMPLE.llm_output_json.scores).map(([key, val]) => (
+                <div key={key} className="flex items-center gap-3">
+                  <span className="text-xs text-gray-500 w-36 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                  <div className="flex-1 bg-gray-100 rounded-full h-2">
+                    <div className="bg-teal-500 h-2 rounded-full" style={{ width: `${(val / 5) * 100}%` }} />
+                  </div>
+                  <span className="text-xs font-semibold text-gray-700 w-8 text-right">{val}/5</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Quote */}
+          <div className="p-6 border-b border-gray-100">
+            <blockquote className="border-l-4 border-teal-300 pl-4 text-gray-600 italic text-sm">
+              "{SAMPLE.llm_output_json.notableQuotes[0]}"
+            </blockquote>
+          </div>
+
+          <div className="px-6 py-4 bg-gray-50 flex justify-end">
+            <Link to="/sample-report" className="text-sm text-teal-600 hover:text-teal-800 font-semibold">
+              View full sample report →
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function FlashApplyForm({ jobId, onSent }) {
   const [message, setMessage] = useState('');
@@ -183,12 +315,12 @@ export default function Landing() {
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-8 pt-20 pb-16 text-center">
         <h1 className="text-5xl font-bold leading-tight mb-6 text-gray-900">
-          Professional references that<br />
-          <span className="text-teal-600">actually tell you something</span>
+          Smarter hiring,<br />
+          <span className="text-teal-600">end to end</span>
         </h1>
         <p className="text-xl text-gray-500 mb-10 max-w-2xl mx-auto leading-relaxed">
-          VouchMetrics replaces vague phone calls with structured feedback and instant AI reports —
-          so hiring teams get real insight and candidates get a voice.
+          VouchMetrics brings your entire hiring process into one place — post jobs, verify candidates,
+          run background checks, and collaborate with staffing vendors.
         </p>
         <div className="flex gap-4 justify-center flex-wrap">
           <Link to="/register?role=employer"
@@ -208,16 +340,16 @@ export default function Landing() {
       <section className="bg-gray-50 border-y border-gray-100 py-10 px-8">
         <div className="max-w-4xl mx-auto text-center">
           <p className="text-gray-500 text-lg">
-            The average reference check takes <strong className="text-gray-700">3 phone calls</strong>, <strong className="text-gray-700">2 weeks</strong>, and still produces <strong className="text-gray-700">no structured data</strong>.
-            <span className="text-teal-600 font-semibold"> VouchMetrics fixes that.</span>
+            Most hiring teams juggle <strong className="text-gray-700">4–6 disconnected tools</strong> across sourcing, screening, and compliance — and still make decisions with <strong className="text-gray-700">incomplete information</strong>.
+            <span className="text-teal-600 font-semibold"> VouchMetrics brings it all together.</span>
           </p>
         </div>
       </section>
 
       {/* How it works */}
       <section className="max-w-5xl mx-auto px-8 py-20">
-        <h2 className="text-3xl font-bold text-center mb-3">How it works</h2>
-        <p className="text-gray-500 text-center mb-12">From invite to insight in under 24 hours.</p>
+        <h2 className="text-3xl font-bold text-center mb-3">Everything hiring needs, in one place</h2>
+        <p className="text-gray-500 text-center mb-12">From your first job posting to a verified hire.</p>
         <div className="grid md:grid-cols-3 gap-8">
           {HOW_IT_WORKS.map(s => (
             <div key={s.step} className="relative">
@@ -229,61 +361,12 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Sample report preview */}
+      {/* AI Reports showcase */}
       <section className="max-w-5xl mx-auto px-8 py-20">
-        <h2 className="text-3xl font-bold text-center mb-3">What a report looks like</h2>
-        <p className="text-gray-500 text-center mb-10">Every referee submission generates an AI report instantly. Here's a real example.</p>
+        <h2 className="text-3xl font-bold text-center mb-3">Two AI reports. Complete candidate clarity.</h2>
+        <p className="text-gray-500 text-center mb-10 max-w-2xl mx-auto">Every hire decision backed by data — from the first application to the final reference check.</p>
 
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-          {/* Report header */}
-          <div className="p-6 border-b border-gray-100 flex justify-between items-start">
-            <div>
-              <div className="text-xs font-medium text-teal-600 bg-teal-50 px-3 py-1 rounded-full border border-teal-100 inline-block mb-2">Sample Report</div>
-              <h3 className="font-bold text-lg">{SAMPLE.candidate_name}</h3>
-              <p className="text-gray-500 text-sm">{SAMPLE.target_role} · Reference by {SAMPLE.referrer_name}</p>
-            </div>
-            <div className="text-center bg-teal-50 rounded-xl px-5 py-2 border border-teal-100">
-              <div className="text-2xl font-bold text-teal-700">{SAMPLE.llm_output_json.confidenceScore}%</div>
-              <div className="text-xs text-gray-500">Confidence</div>
-            </div>
-          </div>
-
-          {/* Executive summary */}
-          <div className="p-6 border-b border-gray-100 bg-teal-50">
-            <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide mb-2">Executive Summary</p>
-            <p className="text-gray-700 text-sm leading-relaxed">{SAMPLE.llm_output_json.executiveSummary}</p>
-          </div>
-
-          {/* Scores */}
-          <div className="p-6 border-b border-gray-100">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Competency Scores</p>
-            <div className="space-y-3">
-              {Object.entries(SAMPLE.llm_output_json.scores).map(([key, val]) => (
-                <div key={key} className="flex items-center gap-3">
-                  <span className="text-xs text-gray-500 w-36 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                  <div className="flex-1 bg-gray-100 rounded-full h-2">
-                    <div className="bg-teal-500 h-2 rounded-full" style={{ width: `${(val / 5) * 100}%` }} />
-                  </div>
-                  <span className="text-xs font-semibold text-gray-700 w-8 text-right">{val}/5</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Quote */}
-          <div className="p-6 border-b border-gray-100">
-            <blockquote className="border-l-4 border-teal-300 pl-4 text-gray-600 italic text-sm">
-              "{SAMPLE.llm_output_json.notableQuotes[0]}"
-            </blockquote>
-          </div>
-
-          {/* See full report link */}
-          <div className="px-6 py-4 bg-gray-50 flex justify-end">
-            <Link to="/sample-report" className="text-sm text-teal-600 hover:text-teal-800 font-semibold">
-              View full sample report →
-            </Link>
-          </div>
-        </div>
+        <AIReportsShowcase />
       </section>
 
       {/* Dual audience */}
@@ -294,7 +377,7 @@ export default function Landing() {
           <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
             <div className="text-3xl mb-4">🏢</div>
             <h3 className="text-xl font-bold mb-2">For hiring teams</h3>
-            <p className="text-gray-500 text-sm mb-6">Stop spending hours on reference calls. Get structured data that helps you make better hires, faster.</p>
+            <p className="text-gray-500 text-sm mb-6">From job postings to background checks to vendor collaboration — manage your entire hiring process without switching tools.</p>
             <ul className="space-y-3">
               {EMPLOYER_BENEFITS.map(b => (
                 <li key={b} className="flex items-start gap-2 text-sm text-gray-700">
@@ -304,7 +387,7 @@ export default function Landing() {
             </ul>
             <Link to="/register?role=employer"
               className="mt-8 block text-center px-5 py-3 bg-teal-600 text-white rounded-xl font-semibold hover:bg-teal-700 transition">
-              Start hiring smarter
+              Get started free
             </Link>
           </div>
 
@@ -312,7 +395,7 @@ export default function Landing() {
           <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
             <div className="text-3xl mb-4">👤</div>
             <h3 className="text-xl font-bold mb-2">For job seekers</h3>
-            <p className="text-gray-500 text-sm mb-6">Take control of your references. Build a reusable profile that travels with you across every application.</p>
+            <p className="text-gray-500 text-sm mb-6">Discover open roles, get found by employers, and build a reusable reference profile that travels with every application.</p>
             <ul className="space-y-3">
               {SEEKER_BENEFITS.map(b => (
                 <li key={b} className="flex items-start gap-2 text-sm text-gray-700">
@@ -322,7 +405,7 @@ export default function Landing() {
             </ul>
             <Link to="/register?role=jobseeker"
               className="mt-8 block text-center px-5 py-3 border-2 border-teal-200 text-teal-700 rounded-xl font-semibold hover:bg-teal-50 transition">
-              Build my reference profile
+              Join as a job seeker
             </Link>
           </div>
         </div>
@@ -330,9 +413,9 @@ export default function Landing() {
 
       {/* CTA */}
       <section className="max-w-3xl mx-auto px-8 py-20 text-center">
-        <h2 className="text-3xl font-bold mb-4">Replace reference calls with real insight</h2>
+        <h2 className="text-3xl font-bold mb-4">Your hiring platform, all in one place</h2>
         <p className="text-gray-500 mb-8 text-lg">
-          Structured feedback and instant AI reports — so hiring teams get clarity and candidates get a voice.
+          From sourcing to verification to vendor collaboration — make better hires, faster.
         </p>
         <Link to="/register"
           className="inline-block px-8 py-4 bg-teal-600 text-white rounded-xl font-bold text-lg hover:bg-teal-700 transition shadow-sm">
