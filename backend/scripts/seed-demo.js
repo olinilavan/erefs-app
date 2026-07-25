@@ -79,6 +79,42 @@ const REPORT_ALICE_REF2 = {
   confidenceNote: 'Well-rounded responses with clear specific examples. Honestly-noted lower leadership score reflects thoughtful calibration.',
 };
 
+const REPORT_SARAH_REF1 = {
+  executiveSummary: 'Sarah Chen is a highly capable full-stack engineer who combines strong technical execution with an innate ability to work collaboratively across product, design, and backend teams. Mei Lin, her former engineering manager, describes her as one of the fastest learners she has managed — someone who consistently ships well-tested, readable code while keeping a keen eye on the user experience.',
+  scores: { overallPerformance: 5, teamwork: 5, communication: 4, problemSolving: 5, leadership: 4 },
+  keyStrengths: ['Full-stack breadth with genuine depth in both React and Node.js', 'Unusually strong product intuition for an engineer — asks the right "why" questions early', 'Highly collaborative — bridges design and engineering with ease'],
+  areasForDevelopment: ['Growing into technical leadership — strong potential but early in managing other engineers', 'Could invest more in internal documentation as systems grow in complexity'],
+  cultureFit: 'Thrives in product-focused engineering teams where there is room for ownership and cross-functional collaboration. Works best when given autonomy with clear product goals.',
+  rehireSignal: { yes: 1, no: 0, context: 'Mei said she would hire Sarah again without hesitation and described her as someone she actively recommends to her network.' },
+  notableQuotes: ['She rebuilt our entire onboarding flow in a week — cleaner code, 40% faster load time, and zero bugs in production.', 'Sarah has this rare quality of making hard things look easy without cutting corners.'],
+  confidenceScore: 93,
+  confidenceNote: 'Highly detailed responses with specific project outcomes and consistent themes throughout.',
+};
+
+const REPORT_SARAH_REF2 = {
+  executiveSummary: 'David Park worked alongside Sarah for two years on a cross-functional product team and consistently found her to be an outstanding collaborator and a highly dependable engineer. He highlights her ability to navigate ambiguity confidently and deliver polished work on tight deadlines.',
+  scores: { overallPerformance: 4, teamwork: 5, communication: 4, problemSolving: 4, leadership: 3 },
+  keyStrengths: ['Reliable delivery — consistently hits deadlines without sacrificing quality', 'Strong communicator in cross-team settings — translates technical complexity clearly', 'Proactive about unblocking teammates and sharing context'],
+  areasForDevelopment: ['Early-stage in taking technical architecture ownership — a natural next step in her growth', 'Presentation confidence in large group settings is developing'],
+  cultureFit: 'Excellent fit for collaborative, cross-functional teams that value both craftsmanship and pragmatic delivery. Pairs well with strong product managers.',
+  rehireSignal: { yes: 1, no: 0, context: 'David would work with Sarah again and specifically recommended her for senior IC and tech lead roles.' },
+  notableQuotes: ['Every sprint she had code in review that I wished I had written myself.', 'She is the kind of teammate who makes the whole team calmer in a crunch.'],
+  confidenceScore: 86,
+  confidenceNote: 'Strong, consistent responses. Slightly lower leadership detail reflects honest calibration as a peer rather than manager.',
+};
+
+const REPORT_MARCUS_REF1 = {
+  executiveSummary: 'Marcus Osei is an exceptional data scientist with rare depth in both statistical modelling and ML engineering. Dr. Amara Nwosu, his research director, describes him as the most impactful hire her team has made in five years — someone who operates equally comfortably in a Jupyter notebook and a production pipeline, and who communicates findings in a way that moves business decisions.',
+  scores: { overallPerformance: 5, teamwork: 4, communication: 5, problemSolving: 5, leadership: 4 },
+  keyStrengths: ['Exceptional ML intuition — identifies the right approach quickly and validates fast', 'Outstanding data storytelling — turns complex model outputs into executive-ready narratives', 'End-to-end ownership from raw data to deployed model to monitoring'],
+  areasForDevelopment: ['Opportunity to grow into people management — shows strong mentorship instincts', 'Expanding into ML platform/infra work would broaden his already strong profile'],
+  cultureFit: 'Best in data-first organisations where analytical rigour is valued at the executive level and there is a path from insight to product impact. Needs stakeholders who act on data.',
+  rehireSignal: { yes: 1, no: 0, context: 'Dr. Nwosu said Marcus is one of the few people she would actively recruit away from a competitor and called him a generational talent in applied ML.' },
+  notableQuotes: ['His churn model is still running in production two years after he left — and still outperforming everything we have built since.', 'Marcus has a gift for making a room of sceptical executives trust the data.'],
+  confidenceScore: 96,
+  confidenceNote: 'Exceptionally detailed responses with multiple measurable outcomes, specific project names, and strong internal consistency.',
+};
+
 // ── Referrer responses (10 questions) ────────────────────────────────────────
 
 function responses(rating) {
@@ -138,13 +174,20 @@ async function main() {
       ['talentfirst@vmdemo.com', hash]);
 
     // Jobseekers for talent directory
-    await client.query(`
+    const { rows: [sarah] } = await client.query(`
       INSERT INTO users (email, password_hash, name, role, headline, publicly_discoverable, allow_employer_contact, years_experience, location, is_verified, terms_accepted_at)
-      VALUES
-        ($1, $4, 'Sarah Chen',  'jobseeker', 'Full-Stack Developer · React & Node.js', true, true,  5, 'Austin, TX',    true, NOW()),
-        ($2, $4, 'Marcus Osei', 'jobseeker', 'Data Scientist · ML & Python',           true, true,  7, 'Remote',        true, NOW()),
-        ($3, $4, 'Priya Nair',  'jobseeker', 'Senior UX Designer · Figma',             true, false, 9, 'San Francisco', true, NOW())`,
-      ['sarah.chen@vmdemo.com', 'marcus.osei@vmdemo.com', 'priya.nair@vmdemo.com', hash]);
+      VALUES ($1, $2, 'Sarah Chen', 'jobseeker', 'Full-Stack Developer · React & Node.js', true, true, 5, 'Austin, TX', true, NOW()) RETURNING id`,
+      ['sarah.chen@vmdemo.com', hash]);
+
+    const { rows: [marcus] } = await client.query(`
+      INSERT INTO users (email, password_hash, name, role, headline, publicly_discoverable, allow_employer_contact, years_experience, location, is_verified, terms_accepted_at)
+      VALUES ($1, $2, 'Marcus Osei', 'jobseeker', 'Data Scientist · ML & Python', true, true, 7, 'Remote', true, NOW()) RETURNING id`,
+      ['marcus.osei@vmdemo.com', hash]);
+
+    const { rows: [priya] } = await client.query(`
+      INSERT INTO users (email, password_hash, name, role, headline, publicly_discoverable, allow_employer_contact, years_experience, location, is_verified, terms_accepted_at)
+      VALUES ($1, $2, 'Priya Nair', 'jobseeker', 'Senior UX Designer · Figma', true, false, 9, 'San Francisco', true, NOW()) RETURNING id`,
+      ['priya.nair@vmdemo.com', hash]);
 
     // ─ Background checks ──────────────────────────────────────────────────────
     console.log('🔍  Creating background checks…');
@@ -303,6 +346,49 @@ async function main() {
         ($1, 'Ryan Park',    'ryan.park@example.com',    'My background in platform engineering looks like a strong fit.')`,
       [flashJob.id]);
 
+    // ─ Jobseeker reference pipelines ─────────────────────────────────────────
+    console.log('👥  Creating jobseeker reference pipelines…');
+
+    // Sarah Chen — 2 completed refs with AI reports, 1 still invited
+    const { rows: [sarahRR] } = await client.query(`
+      INSERT INTO referral_requests (requester_id, requester_role, candidate_name, candidate_email, target_role, share_token_expires_at)
+      VALUES ($1, 'jobseeker', 'Sarah Chen', 'sarah.chen@vmdemo.com', 'Senior Full-Stack Engineer', NOW() + INTERVAL '14 days')
+      RETURNING id`, [sarah.id]);
+
+    const sarahRef1 = await addReferrer(client, sarahRR.id, 'Mei Lin',    'mei.lin@demo.com',    'completed', 5);
+    const sarahRef2 = await addReferrer(client, sarahRR.id, 'David Park', 'david.park@demo.com', 'completed', 4);
+    await addReferrer(client, sarahRR.id, 'Tom Bradley', 'tom.bradley@demo.com', 'invited');
+
+    await addReport(client, sarahRef1, REPORT_SARAH_REF1);
+    await addReport(client, sarahRef2, REPORT_SARAH_REF2);
+
+    // Sarah applied to the flash job
+    await client.query(`
+      INSERT INTO job_applications (job_id, applicant_name, applicant_email, message)
+      VALUES ($1, 'Sarah Chen', 'sarah.chen@vmdemo.com', 'Five years building full-stack products with React and Node.js — excited about this role.')`,
+      [flashJob.id]);
+
+    // Marcus Osei — 1 completed ref with AI report, 1 viewed, 1 invited
+    const { rows: [marcusRR] } = await client.query(`
+      INSERT INTO referral_requests (requester_id, requester_role, candidate_name, candidate_email, target_role, share_token_expires_at)
+      VALUES ($1, 'jobseeker', 'Marcus Osei', 'marcus.osei@vmdemo.com', 'Lead Data Scientist', NOW() + INTERVAL '14 days')
+      RETURNING id`, [marcus.id]);
+
+    const marcusRef1 = await addReferrer(client, marcusRR.id, 'Dr. Amara Nwosu', 'amara.nwosu@demo.com', 'completed', 5);
+    await addReferrer(client, marcusRR.id, 'Sofia Reyes',  'sofia.reyes@demo.com',  'viewed');
+    await addReferrer(client, marcusRR.id, 'Kevin Zhang',  'kevin.zhang@demo.com',  'invited');
+
+    await addReport(client, marcusRef1, REPORT_MARCUS_REF1);
+
+    // Priya Nair — referrers invited, no responses yet
+    const { rows: [priyaRR] } = await client.query(`
+      INSERT INTO referral_requests (requester_id, requester_role, candidate_name, candidate_email, target_role, share_token_expires_at)
+      VALUES ($1, 'jobseeker', 'Priya Nair', 'priya.nair@vmdemo.com', 'Lead UX Designer', NOW() + INTERVAL '14 days')
+      RETURNING id`, [priya.id]);
+
+    await addReferrer(client, priyaRR.id, 'Rachel Kim', 'rachel.kim@demo.com', 'invited');
+    await addReferrer(client, priyaRR.id, 'Jordan Lee', 'jordan.lee@demo.com', 'invited');
+
     // ─ Vendor network ─────────────────────────────────────────────────────────
     console.log('🤝  Creating vendor network…');
 
@@ -337,9 +423,11 @@ async function main() {
     console.log('OTHER LOGINS  (all use Demo1234!)');
     console.log('  staffingpro@vmdemo.com  — StaffingPro  (approved vendor for TechCorp)');
     console.log('  talentfirst@vmdemo.com  — TalentFirst  (pending vendor request)');
-    console.log('  sarah.chen@vmdemo.com   — Talent directory · Full-Stack Developer');
-    console.log('  marcus.osei@vmdemo.com  — Talent directory · Data Scientist');
-    console.log('  priya.nair@vmdemo.com   — Talent directory · UX Designer');
+    console.log('');
+    console.log('JOB SEEKER LOGINS  (all use Demo1234!)');
+    console.log('  sarah.chen@vmdemo.com   — Sarah Chen  · Full-Stack Developer · 2 AI reports ready, 1 ref invited');
+    console.log('  marcus.osei@vmdemo.com  — Marcus Osei · Data Scientist       · 1 AI report ready, 1 viewed, 1 invited');
+    console.log('  priya.nair@vmdemo.com   — Priya Nair  · UX Designer          · 2 referrers invited (no responses yet)');
     console.log('');
     console.log('CANDIDATE INTAKE FORM  (show what the candidate sees)');
     console.log(`  http://localhost:5173/bg/${DEMO_TOKEN}`);
@@ -354,7 +442,7 @@ async function main() {
     console.log('  Frank Wilson   · All 3 checks  · Invited     — use candidate form link above');
     console.log('');
     console.log('JOB POSTINGS');
-    console.log('  Senior Software Engineer  · Public  · 🔥 Flash active  · 2 applicants');
+    console.log('  Senior Software Engineer  · Public  · 🔥 Flash active  · 3 applicants (incl. Sarah Chen)');
     console.log('  Product Manager — Payments· Vendor Only              · 1 vendor submission');
     console.log('  DevOps / Platform Eng.    · Public                   · 3 applicants + AI scores');
     console.log('  UX Designer               · Closed');
