@@ -172,12 +172,15 @@ function MyTeamTab() {
   const [loaded, setLoaded]       = useState(false);
   const [showAdd, setShowAdd]     = useState(false);
   const [filter, setFilter]       = useState('all');
+  const [skillSearch, setSkillSearch] = useState('');
 
   useEffect(() => {
     api.get('/api/employer/workforce').then(r => { setResources(r.data); setLoaded(true); });
   }, []);
 
-  const filtered = filter === 'all' ? resources : resources.filter(r => r.computed_status === filter);
+  const filtered = resources
+    .filter(r => filter === 'all' || r.computed_status === filter)
+    .filter(r => !skillSearch || (r.skills || '').toLowerCase().includes(skillSearch.toLowerCase()));
 
   const counts = {
     all:          resources.length,
@@ -189,7 +192,7 @@ function MyTeamTab() {
 
   return (
     <div>
-      <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
         <div className="flex flex-wrap gap-1 bg-gray-100 p-1 rounded-xl">
           {[['all', 'All'], ['placed', 'Placed'], ['ending_soon', 'Ending Soon'], ['bench', 'On Bench'], ['on_leave', 'On Leave']].map(([k, l]) => (
             <button key={k} onClick={() => setFilter(k)}
@@ -202,6 +205,23 @@ function MyTeamTab() {
           <button onClick={() => setShowAdd(true)}
             className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition">
             + Add Resource
+          </button>
+        )}
+      </div>
+
+      <div className="relative mb-6">
+        <span className="absolute inset-y-0 left-3 flex items-center text-gray-400 text-sm">🔍</span>
+        <input
+          type="text"
+          placeholder="Filter by skill (e.g. React, AWS, Java)"
+          value={skillSearch}
+          onChange={e => setSkillSearch(e.target.value)}
+          className="w-full sm:w-72 border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+        />
+        {skillSearch && (
+          <button onClick={() => setSkillSearch('')}
+            className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600 text-xs">
+            ✕
           </button>
         )}
       </div>
@@ -219,7 +239,7 @@ function MyTeamTab() {
         <div className="text-center py-16 text-gray-400">
           {resources.length === 0
             ? <><div className="text-4xl mb-3">👥</div><p>No resources yet — add your first one above.</p></>
-            : <p>No resources match this filter.</p>}
+            : <p>No resources match this filter{skillSearch ? ` for skill "${skillSearch}"` : ''}.</p>}
         </div>
       ) : (
         <div className="space-y-3">
@@ -234,12 +254,13 @@ function MyTeamTab() {
 }
 
 function BenchReportTab() {
-  const [days, setDays]       = useState(30);
-  const [resources, setRes]   = useState([]);
-  const [loaded, setLoaded]   = useState(false);
-  const [sending, setSending] = useState(false);
-  const [sent, setSent]       = useState(false);
-  const [error, setError]     = useState('');
+  const [days, setDays]           = useState(30);
+  const [resources, setRes]       = useState([]);
+  const [loaded, setLoaded]       = useState(false);
+  const [sending, setSending]     = useState(false);
+  const [sent, setSent]           = useState(false);
+  const [error, setError]         = useState('');
+  const [skillSearch, setSkillSearch] = useState('');
 
   useEffect(() => {
     setLoaded(false);
@@ -260,12 +281,14 @@ function BenchReportTab() {
     }
   }
 
-  const onBench    = resources.filter(r => r.computed_status === 'bench');
-  const endingSoon = resources.filter(r => r.computed_status === 'ending_soon');
+  const displayed  = !skillSearch ? resources
+    : resources.filter(r => (r.skills || '').toLowerCase().includes(skillSearch.toLowerCase()));
+  const onBench    = displayed.filter(r => r.computed_status === 'bench');
+  const endingSoon = displayed.filter(r => r.computed_status === 'ending_soon');
 
   return (
     <div>
-      <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-600">Ending within</span>
           <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
@@ -287,12 +310,32 @@ function BenchReportTab() {
         </div>
       </div>
 
+      <div className="relative mb-6">
+        <span className="absolute inset-y-0 left-3 flex items-center text-gray-400 text-sm">🔍</span>
+        <input
+          type="text"
+          placeholder="Filter by skill (e.g. React, AWS, Java)"
+          value={skillSearch}
+          onChange={e => setSkillSearch(e.target.value)}
+          className="w-full sm:w-72 border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+        />
+        {skillSearch && (
+          <button onClick={() => setSkillSearch('')}
+            className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600 text-xs">
+            ✕
+          </button>
+        )}
+      </div>
+
       {!loaded ? (
         <div className="text-center py-16 text-gray-400">Loading…</div>
-      ) : resources.length === 0 ? (
+      ) : displayed.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           <div className="text-4xl mb-3">✅</div>
-          <p>No resources on bench or releasing within {days} days.</p>
+          <p>{resources.length === 0
+            ? `No resources on bench or releasing within ${days} days.`
+            : `No resources match skill "${skillSearch}".`}
+          </p>
         </div>
       ) : (
         <div className="space-y-8">
