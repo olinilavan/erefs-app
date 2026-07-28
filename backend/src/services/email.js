@@ -560,4 +560,99 @@ async function sendBgCheckDeclined(employer, candidate) {
   else console.log('[bg check declined email sent]', data?.id, '→', employer.email);
 }
 
-module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendCandidateProfileInvite, sendEmployerContactRequest, sendNewApplicantNotification, sendAdminReminderReport, sendVendorLinkRequest, sendVendorLinkApproved, sendVendorLinkDeclined, sendVendorLinkRevoked, sendVendorSubmissionNotification, sendBgCheckInvite, sendBgCheckSubmitted, sendBgCheckDeclined };
+async function sendBenchReport(employer, resources, days) {
+  const onBench     = resources.filter(r => r.computed_status === 'bench');
+  const endingSoon  = resources.filter(r => r.computed_status === 'ending_soon');
+  const total       = onBench.length + endingSoon.length;
+  const reportDate  = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const resourceRow = r => `
+    <tr>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0;">
+        <strong style="color: #1a1a2e;">${r.name}</strong>
+        ${r.job_title ? `<br><span style="font-size: 12px; color: #777;">${r.job_title}</span>` : ''}
+      </td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-size: 13px; color: #555;">
+        ${r.skills ? r.skills.split(',').slice(0, 4).map(s => s.trim()).join(', ') : '—'}
+      </td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-size: 13px; color: #555;">${r.location || '—'}</td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-size: 13px; color: #555;">
+        ${r.placement ? r.placement.clientName : '—'}
+      </td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-size: 13px;">
+        ${r.placement?.endDate
+          ? `<span style="color: #d97706; font-weight: 600;">${new Date(r.placement.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>`
+          : '<span style="color: #0f766e; font-weight: 600;">Available now</span>'}
+      </td>
+    </tr>`;
+
+  const tableHeader = `
+    <tr style="background: #f9fafb;">
+      <th style="padding: 10px 12px; text-align: left; font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Resource</th>
+      <th style="padding: 10px 12px; text-align: left; font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Skills</th>
+      <th style="padding: 10px 12px; text-align: left; font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Location</th>
+      <th style="padding: 10px 12px; text-align: left; font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Current Client</th>
+      <th style="padding: 10px 12px; text-align: left; font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Availability</th>
+    </tr>`;
+
+  if (isDev) {
+    console.log(`\n[DEV] Bench report for ${employer.company || employer.name}`);
+    console.log(`[DEV] ${onBench.length} on bench, ${endingSoon.length} ending within ${days} days\n`);
+    return;
+  }
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: employer.email,
+    subject: `Workforce Bench Report — ${total} resource${total !== 1 ? 's' : ''} available within ${days} days`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 680px; margin: 0 auto; color: #1a1a2e;">
+        <div style="background: #0f766e; padding: 24px 32px;">
+          <h1 style="color: white; margin: 0; font-size: 22px;">Workforce Bench Report</h1>
+          <p style="color: rgba(255,255,255,0.8); margin: 6px 0 0; font-size: 14px;">
+            ${employer.company || employer.name} · ${reportDate} · Next ${days} days
+          </p>
+        </div>
+
+        <div style="padding: 24px 32px; background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+          <span style="display: inline-block; background: #dcfce7; color: #15803d; font-size: 13px; font-weight: 600; padding: 4px 12px; border-radius: 99px; margin-right: 8px;">
+            ${onBench.length} on bench
+          </span>
+          <span style="display: inline-block; background: #fef3c7; color: #b45309; font-size: 13px; font-weight: 600; padding: 4px 12px; border-radius: 99px;">
+            ${endingSoon.length} ending soon
+          </span>
+        </div>
+
+        ${onBench.length > 0 ? `
+        <div style="padding: 24px 32px 0;">
+          <h2 style="font-size: 16px; margin: 0 0 12px; color: #15803d;">Available Now — On Bench</h2>
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+            ${tableHeader}${onBench.map(resourceRow).join('')}
+          </table>
+        </div>` : ''}
+
+        ${endingSoon.length > 0 ? `
+        <div style="padding: 24px 32px 0;">
+          <h2 style="font-size: 16px; margin: 0 0 12px; color: #b45309;">Ending Soon — Within ${days} Days</h2>
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+            ${tableHeader}${endingSoon.map(resourceRow).join('')}
+          </table>
+        </div>` : ''}
+
+        <div style="padding: 24px 32px; text-align: center;">
+          <a href="${BASE_URL}/employer/workforce?tab=bench" style="background: #0f766e; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px;">
+            View Full Bench Report →
+          </a>
+        </div>
+        <p style="text-align: center; color: #9ca3af; font-size: 12px; padding: 0 32px 24px;">
+          Sent from VouchMetrics Workforce · <a href="${BASE_URL}/employer/workforce" style="color: #9ca3af;">Manage your workforce</a>
+        </p>
+      </div>
+    `,
+  });
+
+  if (error) console.error('[bench report email failed]', error);
+  else console.log('[bench report email sent]', data?.id, '→', employer.email);
+}
+
+module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendCandidateProfileInvite, sendEmployerContactRequest, sendNewApplicantNotification, sendAdminReminderReport, sendVendorLinkRequest, sendVendorLinkApproved, sendVendorLinkDeclined, sendVendorLinkRevoked, sendVendorSubmissionNotification, sendBgCheckInvite, sendBgCheckSubmitted, sendBgCheckDeclined, sendBenchReport };

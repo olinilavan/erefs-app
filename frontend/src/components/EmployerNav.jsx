@@ -4,6 +4,7 @@ import AccountDropdown from './AccountDropdown';
 
 const NAV_LINKS = [
   { to: '/employer/dashboard',      label: 'Hiring',             exact: true },
+  { to: '/employer/workforce',      label: '👥 Workforce' },
   { to: '/employer/talent',         label: '🔍 Talent Directory' },
   { to: '/employer/jobs',           label: '📋 Job Postings' },
   { to: '/employer/vendor-network', label: '🤝 Vendor Network' },

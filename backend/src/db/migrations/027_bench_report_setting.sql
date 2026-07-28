@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bench_report_enabled BOOLEAN NOT NULL DEFAULT false;

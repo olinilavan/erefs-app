@@ -153,6 +153,10 @@ async function main() {
       WHERE buyer_employer_id  IN (SELECT id FROM users WHERE email = ANY($1))
          OR vendor_employer_id IN (SELECT id FROM users WHERE email = ANY($1))`,
       [DEMO_EMAILS]);
+    await client.query(`
+      DELETE FROM workforce_resources
+      WHERE employer_id IN (SELECT id FROM users WHERE email = ANY($1))`,
+      [DEMO_EMAILS]);
     await client.query(`DELETE FROM users WHERE email = ANY($1)`, [DEMO_EMAILS]);
 
     // ─ Users ─────────────────────────────────────────────────────────────────
@@ -411,6 +415,97 @@ async function main() {
       VALUES ($1, $2, 'pending')`,
       [emp.id, tFirst.id]);
 
+    // ─ Workforce ──────────────────────────────────────────────────────────────
+    console.log('🏢  Creating workforce resources…');
+
+    async function addResource(employerId, fields) {
+      const { rows: [r] } = await client.query(`
+        INSERT INTO workforce_resources
+          (employer_id, name, email, job_title, skills, location, employment_type, status)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+        [employerId, fields.name, fields.email || null, fields.jobTitle || null,
+         fields.skills || null, fields.location || null, fields.empType || 'employee', fields.status || 'bench']);
+      return r.id;
+    }
+
+    async function addPlacement(resourceId, p) {
+      await client.query(`
+        INSERT INTO workforce_placements
+          (resource_id, client_name, project_name, start_date, end_date, bill_rate, pay_rate, rate_type, status)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,'hourly',$8)`,
+        [resourceId, p.client, p.project || null, p.start, p.end || null,
+         p.bill || null, p.pay || null, p.status || 'active']);
+    }
+
+    // Jordan Rivera — Senior Java Developer, placed at Accenture, releases in ~45 days
+    const jordan = await addResource(emp.id, {
+      name: 'Jordan Rivera', email: 'jordan.rivera@techcorp-internal.com',
+      jobTitle: 'Senior Java Developer', skills: 'Java, Spring Boot, Microservices, AWS, Kubernetes',
+      location: 'Chicago, IL', empType: 'employee', status: 'placed',
+    });
+    await addPlacement(jordan, { client: 'Accenture', project: 'Insurance Platform Modernisation',
+      start: '2026-02-03', end: '2026-09-12', bill: 145, pay: 95 });
+
+    // Preethi Sharma — Data Engineer, ending soon (~18 days)
+    const preethi = await addResource(emp.id, {
+      name: 'Preethi Sharma', email: 'preethi.sharma@techcorp-internal.com',
+      jobTitle: 'Data Engineer', skills: 'Python, Spark, Snowflake, dbt, Airflow, Azure',
+      location: 'Remote', empType: 'w2_contractor', status: 'placed',
+    });
+    await addPlacement(preethi, { client: 'Deloitte', project: 'Data Lake Migration',
+      start: '2025-10-15', end: '2026-08-15', bill: 130, pay: 85 });
+    // past placement for history
+    await addPlacement(preethi, { client: 'PwC', project: 'Analytics Pipeline',
+      start: '2025-03-01', end: '2025-10-10', bill: 120, pay: 80, status: 'ended' });
+
+    // Marcus Webb — DevOps Engineer, critical — ending in ~8 days
+    const marcusW = await addResource(emp.id, {
+      name: 'Marcus Webb', email: 'marcus.webb@techcorp-internal.com',
+      jobTitle: 'DevOps / Platform Engineer', skills: 'Kubernetes, Terraform, AWS, GitHub Actions, Datadog',
+      location: 'Austin, TX', empType: 'employee', status: 'placed',
+    });
+    await addPlacement(marcusW, { client: 'IBM', project: 'Cloud Infrastructure Automation',
+      start: '2026-01-20', end: '2026-08-05', bill: 140, pay: 90 });
+
+    // Aisha Okonkwo — Full-Stack Developer, on bench (immediately available)
+    const aisha = await addResource(emp.id, {
+      name: 'Aisha Okonkwo', email: 'aisha.okonkwo@techcorp-internal.com',
+      jobTitle: 'Full-Stack Developer', skills: 'React, Node.js, TypeScript, PostgreSQL, Docker',
+      location: 'Atlanta, GA', empType: 'employee', status: 'bench',
+    });
+    await addPlacement(aisha, { client: 'Capgemini', project: 'Customer Portal Rebuild',
+      start: '2025-06-01', end: '2026-06-30', bill: 125, pay: 80, status: 'ended' });
+
+    // Kevin Zhang — QA Automation Engineer, on bench
+    await addResource(emp.id, {
+      name: 'Kevin Zhang', email: 'kevin.zhang@techcorp-internal.com',
+      jobTitle: 'QA Automation Engineer', skills: 'Selenium, Cypress, Python, JIRA, TestRail',
+      location: 'Seattle, WA', empType: 'w2_contractor', status: 'bench',
+    });
+
+    // Lisa Tran — Business Analyst, placed long-term (~90 days out)
+    const lisa = await addResource(emp.id, {
+      name: 'Lisa Tran', email: 'lisa.tran@techcorp-internal.com',
+      jobTitle: 'Senior Business Analyst', skills: 'Requirements Analysis, Agile, Jira, Stakeholder Management, SQL',
+      location: 'Dallas, TX', empType: 'employee', status: 'placed',
+    });
+    await addPlacement(lisa, { client: 'Capgemini', project: 'ERP Implementation',
+      start: '2026-04-01', end: '2026-10-31', bill: 115, pay: 72 });
+
+    // Ryan Patel — React Developer, on leave
+    await addResource(emp.id, {
+      name: 'Ryan Patel', email: 'ryan.patel@techcorp-internal.com',
+      jobTitle: 'React / Frontend Developer', skills: 'React, Redux, TypeScript, Tailwind, Jest',
+      location: 'San Jose, CA', empType: 'employee', status: 'on_leave',
+    });
+
+    // Neha Gupta — Project Manager, inactive (left the firm)
+    await addResource(emp.id, {
+      name: 'Neha Gupta', email: 'neha.gupta@techcorp-internal.com',
+      jobTitle: 'Project Manager', skills: 'PMP, Agile, Scrum, Risk Management, MS Project',
+      location: 'New York, NY', empType: 'employee', status: 'inactive',
+    });
+
     await client.query('COMMIT');
 
     // ─ Summary ────────────────────────────────────────────────────────────────
@@ -446,6 +541,17 @@ async function main() {
     console.log('  Product Manager — Payments· Vendor Only              · 1 vendor submission');
     console.log('  DevOps / Platform Eng.    · Public                   · 3 applicants + AI scores');
     console.log('  UX Designer               · Closed');
+    console.log('');
+    console.log('WORKFORCE  (demo@techcorp.com → 👥 Workforce tab)');
+    console.log('  Jordan Rivera   · Senior Java Developer  · Placed @ Accenture  · ends 2026-09-12  (~45 days)');
+    console.log('  Preethi Sharma  · Data Engineer          · Placed @ Deloitte   · ends 2026-08-15  (~18 days, ending soon)  · prev PwC placement');
+    console.log('  Marcus Webb     · DevOps Engineer        · Placed @ IBM        · ends 2026-08-05  (~8 days,  critical)');
+    console.log('  Aisha Okonkwo   · Full-Stack Developer   · On Bench            · prev Capgemini placement ended');
+    console.log('  Kevin Zhang     · QA Automation Engineer · On Bench            · no placements yet');
+    console.log('  Lisa Tran       · Senior BA              · Placed @ Capgemini  · ends 2026-10-31  (~90 days)');
+    console.log('  Ryan Patel      · React Developer        · On Leave');
+    console.log('  Neha Gupta      · Project Manager        · Inactive');
+    console.log('  → Bench Report tab shows Aisha + Kevin on bench; Preethi + Marcus ending within 30 days');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
   } catch (err) {

@@ -27,6 +27,8 @@ import EmployerVendorNetwork from './pages/EmployerVendorNetwork';
 import EmployerVendorJobs from './pages/EmployerVendorJobs';
 import BackgroundCheckForm from './pages/BackgroundCheckForm';
 import BackgroundCheckDetail from './pages/BackgroundCheckDetail';
+import Workforce from './pages/Workforce';
+import WorkforceResource from './pages/WorkforceResource';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import VerifyEmail from './pages/VerifyEmail';
@@ -80,6 +82,8 @@ export default function App() {
         <Route path="/employer/vendor-network" element={<PrivateRoute role="employer"><EmployerVendorNetwork /></PrivateRoute>} />
         <Route path="/employer/vendor-jobs" element={<PrivateRoute role="employer"><EmployerVendorJobs /></PrivateRoute>} />
         <Route path="/employer/bg-checks/:id" element={<PrivateRoute role="employer"><BackgroundCheckDetail /></PrivateRoute>} />
+        <Route path="/employer/workforce" element={<PrivateRoute role="employer"><Workforce /></PrivateRoute>} />
+        <Route path="/employer/workforce/:id" element={<PrivateRoute role="employer"><WorkforceResource /></PrivateRoute>} />
 
         {/* Public candidate bg check form */}
         <Route path="/bg/:token" element={<BackgroundCheckForm />} />

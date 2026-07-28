@@ -48,6 +48,7 @@ export default function Settings() {
       location: form.location,
       availability: form.availability,
       default_job_is_public: form.default_job_is_public,
+      bench_report_enabled: form.bench_report_enabled,
     });
     setSaving(false);
     setSaved(true);
@@ -171,6 +172,19 @@ export default function Settings() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Workforce reports — employer only */}
+          {user?.role === 'employer' && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+              <h2 className="font-semibold text-gray-800">Workforce Reports</h2>
+              <Toggle
+                enabled={!!form.bench_report_enabled}
+                onChange={v => setForm({ ...form, bench_report_enabled: v })}
+                label="Weekly bench report email"
+                description="Receive an email every Monday at 8 AM listing resources on bench and placements ending within 30 days."
+              />
             </div>
           )}
 

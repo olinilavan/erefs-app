@@ -11,6 +11,7 @@ router.get('/', auth, async (req, res) => {
             share_link_expiry_days, publicly_discoverable, allow_employer_contact,
             years_experience, location, availability, vm_id,
             require_work_email, reminder_days, wants_custom_questions, default_job_is_public,
+            bench_report_enabled,
             subscription_plan, subscription_started_at, terms_accepted_at, created_at
      FROM users WHERE id = $1`,
     [req.user.id]
@@ -23,7 +24,8 @@ router.get('/', auth, async (req, res) => {
 router.put('/', auth, async (req, res) => {
   const { name, company, headline, linkedin_url, professional_summary, resume_url, share_link_expiry_days,
           publicly_discoverable, allow_employer_contact, years_experience, location, availability,
-          require_work_email, reminder_days, wants_custom_questions, default_job_is_public } = req.body;
+          require_work_email, reminder_days, wants_custom_questions, default_job_is_public,
+          bench_report_enabled } = req.body;
   const result = await db.query(
     `UPDATE users
      SET name = COALESCE($1, name),
@@ -41,16 +43,19 @@ router.put('/', auth, async (req, res) => {
          require_work_email = COALESCE($13, require_work_email),
          reminder_days = COALESCE($14, reminder_days),
          wants_custom_questions = COALESCE($15, wants_custom_questions),
-         default_job_is_public = COALESCE($16, default_job_is_public)
-     WHERE id = $17
+         default_job_is_public = COALESCE($16, default_job_is_public),
+         bench_report_enabled = COALESCE($17, bench_report_enabled)
+     WHERE id = $18
      RETURNING id, email, name, role, company, headline, linkedin_url, professional_summary, resume_url,
                share_link_expiry_days, publicly_discoverable, allow_employer_contact,
                years_experience, location, availability, vm_id,
                require_work_email, reminder_days, wants_custom_questions, default_job_is_public,
+               bench_report_enabled,
                subscription_plan, subscription_started_at, terms_accepted_at`,
     [name, company, headline, linkedin_url, professional_summary, resume_url, share_link_expiry_days,
      publicly_discoverable, allow_employer_contact, years_experience, location, availability,
-     require_work_email, reminder_days, wants_custom_questions, default_job_is_public, req.user.id]
+     require_work_email, reminder_days, wants_custom_questions, default_job_is_public,
+     bench_report_enabled ?? null, req.user.id]
   );
   res.json(result.rows[0]);
 });
