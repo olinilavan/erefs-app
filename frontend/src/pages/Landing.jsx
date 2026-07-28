@@ -302,19 +302,19 @@ export default function Landing() {
     <div className="min-h-screen bg-white text-gray-900">
 
       {/* Nav */}
-      <nav className="flex justify-between items-center px-8 py-5 max-w-6xl mx-auto border-b border-gray-100">
+      <nav className="flex justify-between items-center px-4 md:px-8 py-4 md:py-5 max-w-6xl mx-auto border-b border-gray-100">
         <Logo to="/" height={100} />
-        <div className="flex gap-3 items-center">
-          <Link to="/talent" className="px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium">Available Talent Pool</Link>
-          <Link to="/jobs" className="px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium">Open Roles</Link>
-          <Link to="/login" className="px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium">Log in</Link>
-          <Link to="/register" className="px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700 transition">Get Started Free</Link>
+        <div className="flex gap-2 md:gap-3 items-center">
+          <Link to="/talent" className="hidden md:block px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium">Available Talent Pool</Link>
+          <Link to="/jobs" className="hidden md:block px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium">Open Roles</Link>
+          <Link to="/login" className="px-3 md:px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium text-sm md:text-base">Log in</Link>
+          <Link to="/register" className="px-3 md:px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700 transition text-sm md:text-base">Get Started Free</Link>
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="max-w-5xl mx-auto px-8 pt-20 pb-16 text-center">
-        <h1 className="text-5xl font-bold leading-tight mb-6 text-gray-900">
+      <section className="max-w-5xl mx-auto px-4 md:px-8 pt-12 md:pt-20 pb-10 md:pb-16 text-center">
+        <h1 className="text-3xl md:text-5xl font-bold leading-tight mb-6 text-gray-900">
           Smarter hiring,<br />
           <span className="text-teal-600">end to end</span>
         </h1>

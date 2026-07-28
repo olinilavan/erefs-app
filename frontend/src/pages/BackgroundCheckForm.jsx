@@ -108,7 +108,7 @@ function EducationSection({ entries, onChange }) {
           <input type="text" placeholder="Field of study (e.g. Computer Science)" value={e.fieldOfStudy}
             onChange={ev => update(i, 'fieldOfStudy', ev.target.value)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <input type="number" placeholder="Start year" min="1950" max="2100" value={e.startYear}
               onChange={ev => update(i, 'startYear', ev.target.value)}
               className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
@@ -272,12 +272,12 @@ export default function BackgroundCheckForm() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 px-8 py-4">
+      <nav className="bg-white border-b border-gray-200 px-4 md:px-8 py-4">
         <Logo to="/" />
       </nav>
 
-      <main className="max-w-2xl mx-auto px-6 py-10">
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 mb-6">
+      <main className="max-w-2xl mx-auto px-4 md:px-6 py-8">
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 md:p-8 mb-6">
           <p className="text-xs font-medium text-teal-600 uppercase tracking-wide mb-1">Background Check Request</p>
           <h1 className="text-xl font-bold text-gray-800 mb-1">
             {check.employer_company || check.employer_name} has requested a background check
