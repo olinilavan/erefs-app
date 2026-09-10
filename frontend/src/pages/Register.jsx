@@ -1,6 +1,6 @@
 import Logo from '../components/Logo';
 import LinkedInIcon from '../components/LinkedInIcon';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
@@ -10,14 +10,29 @@ export default function Register() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { googleLogin } = useAuth();
+  const inviteToken = params.get('invite') || '';
   const [form, setForm] = useState({
     name: '', email: '', password: '',
-    role: params.get('role') || 'jobseeker',
+    role: inviteToken ? 'employer' : (params.get('role') || 'jobseeker'),
     company: '', headline: '',
   });
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState('');
   const [registered, setRegistered] = useState(false);
+  const [inviteCompany, setInviteCompany] = useState('');
+  const [inviteError, setInviteError] = useState('');
+
+  useEffect(() => {
+    if (!inviteToken) return;
+    api.get(`/api/company/validate-invite/${inviteToken}`)
+      .then(r => {
+        setInviteCompany(r.data.companyName);
+        setForm(f => ({ ...f, company: r.data.companyName, role: 'employer' }));
+      })
+      .catch(err => {
+        setInviteError(err.response?.data?.error || 'This invite link is invalid or expired.');
+      });
+  }, [inviteToken]);
 
   async function handleGoogleSuccess({ credential }) {
     setError('');
@@ -40,7 +55,11 @@ export default function Register() {
       return;
     }
     try {
-      await api.post('/api/auth/register', { ...form, termsAccepted: true });
+      await api.post('/api/auth/register', {
+        ...form,
+        termsAccepted: true,
+        ...(inviteToken ? { inviteToken } : {}),
+      });
       setRegistered(true);
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed');
@@ -85,6 +104,14 @@ export default function Register() {
         <Logo to="/" />
         <h1 className="text-2xl font-bold mt-6 mb-1">Create your account</h1>
 
+        {inviteToken && inviteError && (
+          <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm">{inviteError}</div>
+        )}
+        {inviteToken && inviteCompany && (
+          <div className="bg-teal-50 border border-teal-200 rounded-lg px-4 py-3 mb-4 text-sm text-teal-800">
+            You've been invited to join <strong>{inviteCompany}</strong> on eRefs.
+          </div>
+        )}
         {error && <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm">{error}</div>}
 
         <div className="flex bg-gray-100 rounded-lg p-1 mb-6 mt-4">
@@ -118,9 +145,14 @@ export default function Register() {
               className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
           )}
           {form.role === 'employer' && (
-            <input type="text" placeholder="Company name" value={form.company}
-              onChange={e => setForm({ ...form, company: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            inviteToken && inviteCompany ? (
+              <input type="text" value={form.company} disabled
+                className="w-full border border-gray-200 rounded-lg px-4 py-3 bg-gray-50 text-gray-500 cursor-not-allowed" />
+            ) : (
+              <input type="text" placeholder="Company name" value={form.company}
+                onChange={e => setForm({ ...form, company: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            )
           )}
           <label className="flex items-start gap-3 cursor-pointer">
             <input type="checkbox" checked={termsAccepted}

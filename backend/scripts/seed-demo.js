@@ -158,24 +158,35 @@ async function main() {
       WHERE employer_id IN (SELECT id FROM users WHERE email = ANY($1))`,
       [DEMO_EMAILS]);
     await client.query(`DELETE FROM users WHERE email = ANY($1)`, [DEMO_EMAILS]);
+    await client.query(`
+      DELETE FROM companies WHERE name = ANY($1)`,
+      [['TechCorp', 'StaffingPro', 'TalentFirst']]);
+
+    // ─ Companies ─────────────────────────────────────────────────────────────
+    const { rows: [tcCo] } = await client.query(
+      `INSERT INTO companies (name, domain) VALUES ('TechCorp', 'techcorp.com') RETURNING id`);
+    const { rows: [spCo] } = await client.query(
+      `INSERT INTO companies (name, domain) VALUES ('StaffingPro', null) RETURNING id`);
+    const { rows: [tfCo] } = await client.query(
+      `INSERT INTO companies (name, domain) VALUES ('TalentFirst', null) RETURNING id`);
 
     // ─ Users ─────────────────────────────────────────────────────────────────
     console.log('👤  Creating demo users…');
 
     const { rows: [emp] } = await client.query(`
-      INSERT INTO users (email, password_hash, name, role, company, is_verified, is_active, terms_accepted_at)
-      VALUES ($1, $2, 'Alex Morgan', 'employer', 'TechCorp', true, true, NOW()) RETURNING id`,
-      ['demo@techcorp.com', hash]);
+      INSERT INTO users (email, password_hash, name, role, company, is_verified, is_active, terms_accepted_at, company_id, is_company_admin)
+      VALUES ($1, $2, 'Alex Morgan', 'employer', 'TechCorp', true, true, NOW(), $3, true) RETURNING id`,
+      ['demo@techcorp.com', hash, tcCo.id]);
 
     const { rows: [sPro] } = await client.query(`
-      INSERT INTO users (email, password_hash, name, role, company, is_verified, is_active, terms_accepted_at)
-      VALUES ($1, $2, 'Dana Lee', 'employer', 'StaffingPro', true, true, NOW()) RETURNING id`,
-      ['staffingpro@vmdemo.com', hash]);
+      INSERT INTO users (email, password_hash, name, role, company, is_verified, is_active, terms_accepted_at, company_id, is_company_admin)
+      VALUES ($1, $2, 'Dana Lee', 'employer', 'StaffingPro', true, true, NOW(), $3, true) RETURNING id`,
+      ['staffingpro@vmdemo.com', hash, spCo.id]);
 
     const { rows: [tFirst] } = await client.query(`
-      INSERT INTO users (email, password_hash, name, role, company, is_verified, is_active, terms_accepted_at)
-      VALUES ($1, $2, 'Chris Patel', 'employer', 'TalentFirst', true, true, NOW()) RETURNING id`,
-      ['talentfirst@vmdemo.com', hash]);
+      INSERT INTO users (email, password_hash, name, role, company, is_verified, is_active, terms_accepted_at, company_id, is_company_admin)
+      VALUES ($1, $2, 'Chris Patel', 'employer', 'TalentFirst', true, true, NOW(), $3, true) RETURNING id`,
+      ['talentfirst@vmdemo.com', hash, tfCo.id]);
 
     // Jobseekers for talent directory
     const { rows: [sarah] } = await client.query(`

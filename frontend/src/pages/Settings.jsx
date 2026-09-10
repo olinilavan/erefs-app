@@ -26,10 +26,38 @@ export default function Settings() {
   const [form, setForm] = useState(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [companyData, setCompanyData] = useState(null);
+  const [inviteLink, setInviteLink] = useState('');
+  const [generatingInvite, setGeneratingInvite] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     api.get('/api/settings').then(r => setForm(r.data));
   }, []);
+
+  useEffect(() => {
+    if (user?.role === 'employer') {
+      api.get('/api/company/team').then(r => setCompanyData(r.data)).catch(() => {});
+    }
+  }, [user]);
+
+  async function generateInvite() {
+    setGeneratingInvite(true);
+    try {
+      const r = await api.post('/api/company/invites');
+      setInviteLink(r.data.inviteUrl);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to generate invite link');
+    } finally {
+      setGeneratingInvite(false);
+    }
+  }
+
+  function copyInvite() {
+    navigator.clipboard.writeText(inviteLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -172,6 +200,60 @@ export default function Settings() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Company & Team — employer only */}
+          {user?.role === 'employer' && companyData && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+              <div>
+                <h2 className="font-semibold text-gray-800">Company & Team</h2>
+                {companyData.company && (
+                  <p className="text-sm text-gray-500 mt-0.5">{companyData.company.name}</p>
+                )}
+              </div>
+
+              {companyData.members.length > 0 && (
+                <div className="space-y-2">
+                  {companyData.members.map(m => (
+                    <div key={m.id} className="flex items-center justify-between text-sm">
+                      <div>
+                        <span className="text-gray-700 font-medium">{m.name}</span>
+                        <span className="text-gray-400 ml-2">{m.email}</span>
+                      </div>
+                      {m.is_company_admin && (
+                        <span className="text-xs bg-teal-100 text-teal-600 px-2 py-0.5 rounded-full font-medium">Admin</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {form?.is_company_admin && (
+                <div className="space-y-3 pt-1 border-t border-gray-100">
+                  <p className="text-xs text-gray-500">Generate a single-use invite link to add a team member. The link expires in 7 days.</p>
+                  {inviteLink ? (
+                    <div className="flex items-center gap-2">
+                      <input readOnly value={inviteLink}
+                        className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-600 bg-gray-50 truncate" />
+                      <button onClick={copyInvite}
+                        className="text-sm text-teal-600 font-medium whitespace-nowrap hover:underline">
+                        {copied ? '✓ Copied' : 'Copy'}
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={generateInvite} disabled={generatingInvite}
+                      className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition disabled:opacity-50">
+                      {generatingInvite ? 'Generating…' : '+ Generate Invite Link'}
+                    </button>
+                  )}
+                  {inviteLink && (
+                    <button onClick={() => { setInviteLink(''); }} className="text-xs text-gray-400 hover:text-gray-600">
+                      Generate another
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

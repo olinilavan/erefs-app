@@ -53,31 +53,97 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const router = express.Router();
 
+const PERSONAL_DOMAINS = new Set([
+  'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com',
+  'live.com', 'msn.com', 'aol.com', 'protonmail.com', 'mail.com',
+  'ymail.com', 'googlemail.com', 'me.com', 'mac.com', 'inbox.com',
+]);
+
+function normalizeCompanyName(name) {
+  return (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+async function resolveEmployerCompany(email, companyName, inviteToken) {
+  if (inviteToken) {
+    const { rows } = await db.query(`
+      SELECT ci.company_id, ci.used_at, ci.expires_at, c.name AS company_name
+      FROM company_invites ci
+      JOIN companies c ON c.id = ci.company_id
+      WHERE ci.token = $1
+    `, [inviteToken]);
+    if (!rows.length)    throw { status: 400, message: 'Invalid invite link.' };
+    if (rows[0].used_at) throw { status: 400, message: 'This invite link has already been used.' };
+    if (new Date(rows[0].expires_at) < new Date()) throw { status: 400, message: 'This invite link has expired.' };
+    return { companyId: rows[0].company_id, companyName: rows[0].company_name, isAdmin: false, inviteToken };
+  }
+
+  if (!companyName) return { companyId: null, companyName: null, isAdmin: false };
+
+  const emailDomain = email.split('@')[1];
+  const isPersonal  = PERSONAL_DOMAINS.has(emailDomain);
+
+  let existing = null;
+  if (!isPersonal) {
+    const { rows } = await db.query('SELECT id FROM companies WHERE domain = $1', [emailDomain]);
+    if (rows.length) existing = rows[0];
+  }
+  if (!existing) {
+    const normalized = normalizeCompanyName(companyName);
+    const all = await db.query('SELECT id, name FROM companies');
+    existing = all.rows.find(c => normalizeCompanyName(c.name) === normalized) || null;
+  }
+
+  if (existing) {
+    const err = new Error(`"${companyName}" already has an account on eRefs. Ask your company admin to send you an invite link.`);
+    err.status = 409; err.code = 'COMPANY_EXISTS';
+    throw err;
+  }
+
+  const domain = isPersonal ? null : emailDomain;
+  const { rows } = await db.query(
+    'INSERT INTO companies (name, domain) VALUES ($1, $2) RETURNING id',
+    [companyName, domain]
+  );
+  return { companyId: rows[0].id, companyName, isAdmin: true };
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
-  const { email, password, name, role, company, headline, termsAccepted } = req.body;
+  const { email, password, name, role, company, headline, termsAccepted, inviteToken } = req.body;
   if (!termsAccepted) return res.status(400).json({ error: 'You must accept the Terms & Conditions' });
   if (!password || password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
   try {
-    // If email exists and is verified → reject
-    // If email exists and is unverified → delete old account (attacker squatting) and re-register
     const existing = await db.query('SELECT id, is_verified FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
-      if (existing.rows[0].is_verified) {
-        return res.status(400).json({ error: 'Email already in use' });
-      }
+      if (existing.rows[0].is_verified) return res.status(400).json({ error: 'Email already in use' });
       await db.query('DELETE FROM users WHERE id = $1', [existing.rows[0].id]);
+    }
+
+    let companyId = null, resolvedCompany = company || null, isCompanyAdmin = false;
+    if (role === 'employer') {
+      const resolved = await resolveEmployerCompany(email, company, inviteToken || null);
+      companyId = resolved.companyId;
+      resolvedCompany = resolved.companyName || company || null;
+      isCompanyAdmin = resolved.isAdmin;
     }
 
     const hash = await bcrypt.hash(password, 10);
     const result = await db.query(
-      `INSERT INTO users (email, password_hash, name, role, company, headline, terms_accepted_at, is_verified)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW(), false) RETURNING id, email, name, role, company, is_admin`,
-      [email, hash, name, role, company || null, headline || null]
+      `INSERT INTO users (email, password_hash, name, role, company, headline, terms_accepted_at, is_verified, company_id, is_company_admin)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), false, $7, $8)
+       RETURNING id, email, name, role, company, is_admin`,
+      [email, hash, name, role, resolvedCompany, headline || null, companyId, isCompanyAdmin]
     );
     const user = result.rows[0];
+
+    if (inviteToken) {
+      await db.query(
+        'UPDATE company_invites SET used_at = NOW(), used_by = $1 WHERE token = $2',
+        [user.id, inviteToken]
+      );
+    }
 
     const tokenResult = await db.query(
       'INSERT INTO email_verification_tokens (user_id) VALUES ($1) RETURNING token',
@@ -87,6 +153,7 @@ router.post('/register', async (req, res) => {
 
     res.json({ message: 'Account created. Please check your email to verify your account.' });
   } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message, code: err.code });
     res.status(500).json({ error: err.message });
   }
 });

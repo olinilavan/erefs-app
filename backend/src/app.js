@@ -13,6 +13,7 @@ const settingsRoutes = require('./routes/settings');
 const adminRoutes = require('./routes/admin');
 const { employerRouter: bgCheckEmployerRoutes, publicRouter: bgCheckPublicRoutes } = require('./routes/bgChecks');
 const workforceRoutes = require('./routes/workforce');
+const companyRoutes = require('./routes/company');
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/employer', bgCheckEmployerRoutes);
 app.use('/api/bg', bgCheckPublicRoutes);
 app.use('/api/employer/workforce', workforceRoutes);
+app.use('/api/company', companyRoutes);
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 

@@ -11,7 +11,7 @@ router.get('/', auth, async (req, res) => {
             share_link_expiry_days, publicly_discoverable, allow_employer_contact,
             years_experience, location, availability, vm_id,
             require_work_email, reminder_days, wants_custom_questions, default_job_is_public,
-            bench_report_enabled,
+            bench_report_enabled, is_company_admin,
             subscription_plan, subscription_started_at, terms_accepted_at, created_at
      FROM users WHERE id = $1`,
     [req.user.id]
