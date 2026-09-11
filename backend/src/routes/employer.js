@@ -6,6 +6,8 @@ const { sendEmployerContactRequest, sendVendorLinkRequest, sendVendorLinkApprove
 const { matchCandidatesToJob } = require('../services/matching');
 const { parseResumeFile } = require('../services/resumeParser');
 
+const { getCompanyMemberIds, getUserCompanyId, logActivity } = require('../utils/company');
+
 const router = express.Router();
 
 const ALLOWED_RESUME_EXTENSIONS = ['pdf', 'doc', 'docx'];
@@ -21,20 +23,23 @@ const upload = multer({
   },
 });
 
-// GET /api/employer/candidates?archived=true|false
+// GET /api/employer/candidates?archived=true|false&owner=all|mine
 router.get('/candidates', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
   const archived = req.query.archived === 'true';
+  const memberIds = req.query.owner === 'mine' ? [req.user.id] : await getCompanyMemberIds(req.user.id);
   const result = await db.query(
     `SELECT rr.*,
+       u.name AS created_by_name,
        COUNT(DISTINCT rf.id) AS total_referrers,
        COUNT(DISTINCT rf.id) FILTER (WHERE rf.submitted_at IS NOT NULL) AS completed_referrers
      FROM referral_requests rr
      LEFT JOIN referrers rf ON rf.referral_request_id = rr.id
-     WHERE rr.requester_id = $1 AND rr.archived_at IS ${archived ? 'NOT NULL' : 'NULL'}
-     GROUP BY rr.id
+     LEFT JOIN users u ON u.id = rr.requester_id
+     WHERE rr.requester_id = ANY($1::uuid[]) AND rr.archived_at IS ${archived ? 'NOT NULL' : 'NULL'}
+     GROUP BY rr.id, u.name
      ORDER BY ${archived ? 'rr.archived_at' : 'rr.created_at'} DESC`,
-    [req.user.id]
+    [memberIds]
   );
   res.json(result.rows);
 });
@@ -75,17 +80,22 @@ router.delete('/candidates/:id', auth, async (req, res) => {
   res.json({ success: true });
 });
 
-// GET /api/employer/jobs — employer's own postings, with applicant counts
+// GET /api/employer/jobs — company job postings, with applicant counts
 router.get('/jobs', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const memberIds = req.query.owner === 'mine' ? [req.user.id] : await getCompanyMemberIds(req.user.id);
   const result = await db.query(
-    `SELECT j.*, COUNT(ja.id) AS applicant_count
+    `SELECT j.*, COUNT(ja.id) AS applicant_count,
+       u.name AS created_by_name,
+       m.name AS last_modified_by_name
      FROM jobs j
      LEFT JOIN job_applications ja ON ja.job_id = j.id
-     WHERE j.employer_id = $1
-     GROUP BY j.id
+     LEFT JOIN users u ON u.id = j.employer_id
+     LEFT JOIN users m ON m.id = j.last_modified_by
+     WHERE j.employer_id = ANY($1::uuid[])
+     GROUP BY j.id, u.name, m.name
      ORDER BY j.created_at DESC`,
-    [req.user.id]
+    [memberIds]
   );
   res.json(result.rows);
 });
@@ -103,10 +113,15 @@ router.post('/jobs', auth, async (req, res) => {
   res.json(result.rows[0]);
 });
 
-// PATCH /api/employer/jobs/:id — edit a posting (including toggling is_public, expiry, or closing it)
+// PATCH /api/employer/jobs/:id
 router.patch('/jobs/:id', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
-  const { title, description, location, workRequirement, isPublic, status, expiresAt } = req.body;
+  const { title, description, location, workRequirement, isPublic, status, expiresAt, note } = req.body;
+  const memberIds = await getCompanyMemberIds(req.user.id);
+  const existing = await db.query('SELECT employer_id, title FROM jobs WHERE id = $1 AND employer_id = ANY($2::uuid[])', [req.params.id, memberIds]);
+  if (!existing.rows.length) return res.status(404).json({ error: 'Not found' });
+  const job = existing.rows[0];
+
   const result = await db.query(
     `UPDATE jobs
      SET title = COALESCE($1, title),
@@ -115,23 +130,43 @@ router.patch('/jobs/:id', auth, async (req, res) => {
          work_requirement = COALESCE($4, work_requirement),
          is_public = COALESCE($5, is_public),
          status = COALESCE($6, status),
-         expires_at = COALESCE($7, expires_at)
-     WHERE id = $8 AND employer_id = $9
+         expires_at = COALESCE($7, expires_at),
+         last_modified_by = $8
+     WHERE id = $9
      RETURNING *`,
-    [title, description, location, workRequirement, isPublic, status, expiresAt, req.params.id, req.user.id]
+    [title, description, location, workRequirement, isPublic, status, expiresAt, req.user.id, req.params.id]
   );
-  if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+
+  const companyId = await getUserCompanyId(req.user.id);
+  await logActivity(db, {
+    companyId, actorId: req.user.id,
+    targetUserId: job.employer_id !== req.user.id ? job.employer_id : null,
+    action: 'updated_job', entityType: 'job',
+    entityId: req.params.id, entityName: result.rows[0].title, note,
+  });
+
   res.json(result.rows[0]);
 });
 
-// DELETE /api/employer/jobs/:id — also removes its applications (FK cascade)
+// DELETE /api/employer/jobs/:id
 router.delete('/jobs/:id', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
-  const result = await db.query(
-    `DELETE FROM jobs WHERE id = $1 AND employer_id = $2 RETURNING id`,
-    [req.params.id, req.user.id]
-  );
-  if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+  const { note } = req.body || {};
+  const memberIds = await getCompanyMemberIds(req.user.id);
+  const existing = await db.query('SELECT employer_id, title FROM jobs WHERE id = $1 AND employer_id = ANY($2::uuid[])', [req.params.id, memberIds]);
+  if (!existing.rows.length) return res.status(404).json({ error: 'Not found' });
+  const job = existing.rows[0];
+
+  await db.query('DELETE FROM jobs WHERE id = $1', [req.params.id]);
+
+  const companyId = await getUserCompanyId(req.user.id);
+  await logActivity(db, {
+    companyId, actorId: req.user.id,
+    targetUserId: job.employer_id !== req.user.id ? job.employer_id : null,
+    action: 'deleted_job', entityType: 'job',
+    entityId: req.params.id, entityName: job.title, note,
+  });
+
   res.json({ success: true });
 });
 
@@ -151,10 +186,52 @@ router.post('/jobs/:id/flash', auth, async (req, res) => {
   res.json(result.rows[0]);
 });
 
+// GET /api/employer/activity — company activity feed + per-member summary
+router.get('/activity', auth, async (req, res) => {
+  if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const companyId = await getUserCompanyId(req.user.id);
+  if (!companyId) return res.json({ feed: [], summary: [] });
+
+  const days = Math.min(90, parseInt(req.query.days) || 30);
+  const actorFilter = req.query.actor || null;
+
+  const [feedRes, summaryRes] = await Promise.all([
+    db.query(`
+      SELECT al.*,
+        a.name AS actor_name,
+        t.name AS target_user_name
+      FROM activity_log al
+      JOIN users a ON a.id = al.actor_id
+      LEFT JOIN users t ON t.id = al.target_user_id
+      WHERE al.company_id = $1
+        AND al.created_at >= NOW() - ($2::int * INTERVAL '1 day')
+        ${actorFilter ? 'AND al.actor_id = $3' : ''}
+      ORDER BY al.created_at DESC LIMIT 100
+    `, actorFilter ? [companyId, days, actorFilter] : [companyId, days]),
+
+    db.query(`
+      SELECT u.id, u.name,
+        COUNT(*) FILTER (WHERE al.entity_type = 'bg_check')         AS bg_checks,
+        COUNT(*) FILTER (WHERE al.entity_type = 'job')              AS jobs,
+        COUNT(*) FILTER (WHERE al.entity_type = 'workforce_resource') AS resources,
+        COUNT(*) AS total_actions
+      FROM users u
+      LEFT JOIN activity_log al ON al.actor_id = u.id AND al.company_id = $1
+        AND al.created_at >= NOW() - ($2::int * INTERVAL '1 day')
+      WHERE u.company_id = $1
+      GROUP BY u.id, u.name
+      ORDER BY total_actions DESC
+    `, [companyId, days]),
+  ]);
+
+  res.json({ feed: feedRes.rows, summary: summaryRes.rows });
+});
+
 // GET /api/employer/jobs/:id/applicants
 router.get('/jobs/:id/applicants', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
-  const jobCheck = await db.query(`SELECT id, title FROM jobs WHERE id = $1 AND employer_id = $2`, [req.params.id, req.user.id]);
+  const memberIds = await getCompanyMemberIds(req.user.id);
+  const jobCheck = await db.query(`SELECT id, title FROM jobs WHERE id = $1 AND employer_id = ANY($2::uuid[])`, [req.params.id, memberIds]);
   if (!jobCheck.rows.length) return res.status(404).json({ error: 'Not found' });
 
   const result = await db.query(

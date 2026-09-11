@@ -3,6 +3,8 @@ const db = require('../db');
 const auth = require('../middleware/auth');
 const { sendBgCheckInvite, sendBgCheckSubmitted, sendBgCheckDeclined, sendReferrerInvite } = require('../services/email');
 
+const { getCompanyMemberIds } = require('../utils/company');
+
 const employerRouter = express.Router();
 const publicRouter  = express.Router();
 
@@ -58,10 +60,12 @@ employerRouter.post('/bg-checks', auth, requireEmployer, async (req, res) => {
   res.status(201).json(check);
 });
 
-// GET /api/employer/bg-checks — list all bg checks for this employer
+// GET /api/employer/bg-checks — company bg checks list
 employerRouter.get('/bg-checks', auth, requireEmployer, async (req, res) => {
+  const memberIds = req.query.owner === 'mine' ? [req.user.id] : await getCompanyMemberIds(req.user.id);
   const result = await db.query(
     `SELECT bc.*,
+       u.name AS created_by_name,
        (SELECT COUNT(*) FROM referrers r
           JOIN referral_requests rr ON r.referral_request_id = rr.id
           WHERE rr.bg_check_id = bc.id) AS ref_total,
@@ -69,9 +73,10 @@ employerRouter.get('/bg-checks', auth, requireEmployer, async (req, res) => {
           JOIN referral_requests rr ON r.referral_request_id = rr.id
           WHERE rr.bg_check_id = bc.id AND r.status = 'completed') AS ref_completed
      FROM background_checks bc
-     WHERE bc.employer_id = $1
+     LEFT JOIN users u ON u.id = bc.employer_id
+     WHERE bc.employer_id = ANY($1::uuid[])
      ORDER BY bc.created_at DESC`,
-    [req.user.id]
+    [memberIds]
   );
 
   res.json(result.rows.map(r => ({ ...r, status: computedStatus(r) })));

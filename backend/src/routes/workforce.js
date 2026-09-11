@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const auth = require('../middleware/auth');
 const { sendBenchReport } = require('../services/email');
+const { getCompanyMemberIds, getUserCompanyId, logActivity } = require('../utils/company');
 
 const router = express.Router();
 
@@ -85,9 +86,19 @@ router.post('/bench/email', auth, requireEmployer, async (req, res) => {
 // ── Resource CRUD ─────────────────────────────────────────────────────────────
 
 router.get('/', auth, requireEmployer, async (req, res) => {
+  const memberIds = req.query.owner === 'mine' ? [req.user.id] : await getCompanyMemberIds(req.user.id);
   const result = await db.query(
-    `${WITH_PLACEMENT} WHERE r.employer_id = $1 ORDER BY r.name ASC`,
-    [req.user.id]
+    `SELECT r.*,
+       u.name AS created_by_name,
+       p.id AS placement_id, p.client_name, p.project_name,
+       p.start_date AS placement_start, p.end_date AS placement_end,
+       p.bill_rate, p.pay_rate, p.rate_type, p.notes AS placement_notes
+     FROM workforce_resources r
+     LEFT JOIN workforce_placements p ON p.resource_id = r.id AND p.status = 'active'
+     LEFT JOIN users u ON u.id = r.employer_id
+     WHERE r.employer_id = ANY($1::uuid[])
+     ORDER BY r.name ASC`,
+    [memberIds]
   );
   res.json(result.rows.map(enrichRow));
 });
@@ -105,8 +116,18 @@ router.post('/', auth, requireEmployer, async (req, res) => {
 });
 
 router.get('/:id', auth, requireEmployer, async (req, res) => {
+  const memberIds = await getCompanyMemberIds(req.user.id);
   const [resourceResult, placementsResult] = await Promise.all([
-    db.query(`${WITH_PLACEMENT} WHERE r.id = $1 AND r.employer_id = $2`, [req.params.id, req.user.id]),
+    db.query(
+      `SELECT r.*, u.name AS created_by_name,
+         p.id AS placement_id, p.client_name, p.project_name,
+         p.start_date AS placement_start, p.end_date AS placement_end,
+         p.bill_rate, p.pay_rate, p.rate_type, p.notes AS placement_notes
+       FROM workforce_resources r
+       LEFT JOIN workforce_placements p ON p.resource_id = r.id AND p.status = 'active'
+       LEFT JOIN users u ON u.id = r.employer_id
+       WHERE r.id = $1 AND r.employer_id = ANY($2::uuid[])`,
+      [req.params.id, memberIds]),
     db.query('SELECT * FROM workforce_placements WHERE resource_id = $1 ORDER BY start_date DESC', [req.params.id]),
   ]);
   if (!resourceResult.rows.length) return res.status(404).json({ error: 'Not found' });
@@ -114,29 +135,62 @@ router.get('/:id', auth, requireEmployer, async (req, res) => {
 });
 
 router.put('/:id', auth, requireEmployer, async (req, res) => {
-  const { name, email, phone, jobTitle, skills, location, employmentType, status, notes } = req.body;
+  const { name, email, phone, jobTitle, skills, location, employmentType, status, notes, note } = req.body;
   if (!name) return res.status(400).json({ error: 'Name is required' });
-  const result = await db.query(`
+  const memberIds = await getCompanyMemberIds(req.user.id);
+  const existing = await db.query(
+    'SELECT employer_id, name FROM workforce_resources WHERE id=$1 AND employer_id=ANY($2::uuid[])',
+    [req.params.id, memberIds]);
+  if (!existing.rows.length) return res.status(404).json({ error: 'Not found' });
+
+  await db.query(`
     UPDATE workforce_resources SET
       name=$1, email=$2, phone=$3, job_title=$4, skills=$5,
-      location=$6, employment_type=$7, status=$8, notes=$9, updated_at=NOW()
-    WHERE id=$10 AND employer_id=$11 RETURNING *`,
+      location=$6, employment_type=$7, status=$8, notes=$9,
+      updated_at=NOW(), last_modified_by=$10
+    WHERE id=$11`,
     [name, email || null, phone || null, jobTitle || null, skills || null,
      location || null, employmentType || 'employee', status || 'bench',
-     notes || null, req.params.id, req.user.id]);
-  if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+     notes || null, req.user.id, req.params.id]);
 
-  // Re-fetch with placement to return enriched row
+  const companyId = await getUserCompanyId(req.user.id);
+  await logActivity(db, {
+    companyId, actorId: req.user.id,
+    targetUserId: existing.rows[0].employer_id !== req.user.id ? existing.rows[0].employer_id : null,
+    action: 'updated_resource', entityType: 'workforce_resource',
+    entityId: req.params.id, entityName: name, note,
+  });
+
   const full = await db.query(
-    `${WITH_PLACEMENT} WHERE r.id = $1`, [req.params.id]);
+    `SELECT r.*, u.name AS created_by_name,
+       p.id AS placement_id, p.client_name, p.project_name,
+       p.start_date AS placement_start, p.end_date AS placement_end,
+       p.bill_rate, p.pay_rate, p.rate_type, p.notes AS placement_notes
+     FROM workforce_resources r
+     LEFT JOIN workforce_placements p ON p.resource_id = r.id AND p.status = 'active'
+     LEFT JOIN users u ON u.id = r.employer_id
+     WHERE r.id = $1`, [req.params.id]);
   res.json(enrichRow(full.rows[0]));
 });
 
 router.delete('/:id', auth, requireEmployer, async (req, res) => {
-  const result = await db.query(
-    'DELETE FROM workforce_resources WHERE id=$1 AND employer_id=$2 RETURNING id',
-    [req.params.id, req.user.id]);
-  if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+  const { note } = req.body || {};
+  const memberIds = await getCompanyMemberIds(req.user.id);
+  const existing = await db.query(
+    'SELECT employer_id, name FROM workforce_resources WHERE id=$1 AND employer_id=ANY($2::uuid[])',
+    [req.params.id, memberIds]);
+  if (!existing.rows.length) return res.status(404).json({ error: 'Not found' });
+
+  await db.query('DELETE FROM workforce_resources WHERE id=$1', [req.params.id]);
+
+  const companyId = await getUserCompanyId(req.user.id);
+  await logActivity(db, {
+    companyId, actorId: req.user.id,
+    targetUserId: existing.rows[0].employer_id !== req.user.id ? existing.rows[0].employer_id : null,
+    action: 'deleted_resource', entityType: 'workforce_resource',
+    entityId: req.params.id, entityName: existing.rows[0].name, note,
+  });
+
   res.json({ ok: true });
 });
 
@@ -146,9 +200,10 @@ router.post('/:id/placements', auth, requireEmployer, async (req, res) => {
   const { clientName, projectName, startDate, endDate, billRate, payRate, rateType, notes } = req.body;
   if (!clientName || !startDate) return res.status(400).json({ error: 'Client name and start date are required' });
 
+  const memberIds = await getCompanyMemberIds(req.user.id);
   const own = await db.query(
-    'SELECT id FROM workforce_resources WHERE id=$1 AND employer_id=$2',
-    [req.params.id, req.user.id]);
+    'SELECT id FROM workforce_resources WHERE id=$1 AND employer_id=ANY($2::uuid[])',
+    [req.params.id, memberIds]);
   if (!own.rows.length) return res.status(404).json({ error: 'Not found' });
 
   const client = await db.connect();
@@ -177,9 +232,10 @@ router.post('/:id/placements', auth, requireEmployer, async (req, res) => {
 });
 
 router.patch('/:id/placements/:pid', auth, requireEmployer, async (req, res) => {
+  const memberIds = await getCompanyMemberIds(req.user.id);
   const own = await db.query(
-    'SELECT id FROM workforce_resources WHERE id=$1 AND employer_id=$2',
-    [req.params.id, req.user.id]);
+    'SELECT id FROM workforce_resources WHERE id=$1 AND employer_id=ANY($2::uuid[])',
+    [req.params.id, memberIds]);
   if (!own.rows.length) return res.status(404).json({ error: 'Not found' });
 
   const fields = [];

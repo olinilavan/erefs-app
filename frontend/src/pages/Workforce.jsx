@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../api';
 import EmployerNav from '../components/EmployerNav';
+import { useAuth } from '../context/AuthContext';
 
 const STATUS_STYLE = {
   bench:        'bg-blue-100 text-blue-700',
@@ -103,8 +104,9 @@ function AddResourceForm({ onSaved, onCancel }) {
   );
 }
 
-function ResourceCard({ resource, onDeleted }) {
+function ResourceCard({ resource, currentUserId, onDeleted }) {
   const [deleting, setDeleting] = useState(false);
+  const isCrossMember = resource.employer_id !== currentUserId;
 
   async function handleDelete() {
     if (!window.confirm(`Remove ${resource.name} from your workforce?`)) return;
@@ -152,6 +154,9 @@ function ResourceCard({ resource, onDeleted }) {
             )}
           </div>
         )}
+        {isCrossMember && resource.created_by_name && (
+          <p className="text-xs text-teal-700 mt-1">Added by <span className="font-medium">{resource.created_by_name}</span></p>
+        )}
       </div>
       <div className="flex items-center gap-3 flex-shrink-0">
         <Link to={`/employer/workforce/${resource.id}`}
@@ -168,15 +173,18 @@ function ResourceCard({ resource, onDeleted }) {
 }
 
 function MyTeamTab() {
+  const { user } = useAuth();
   const [resources, setResources] = useState([]);
   const [loaded, setLoaded]       = useState(false);
   const [showAdd, setShowAdd]     = useState(false);
   const [filter, setFilter]       = useState('all');
   const [skillSearch, setSkillSearch] = useState('');
+  const [owner, setOwner]         = useState('all');
 
   useEffect(() => {
-    api.get('/api/employer/workforce').then(r => { setResources(r.data); setLoaded(true); });
-  }, []);
+    setLoaded(false);
+    api.get(`/api/employer/workforce?owner=${owner}`).then(r => { setResources(r.data); setLoaded(true); });
+  }, [owner]);
 
   const filtered = resources
     .filter(r => filter === 'all' || r.computed_status === filter)
@@ -201,12 +209,22 @@ function MyTeamTab() {
             </button>
           ))}
         </div>
-        {!showAdd && (
-          <button onClick={() => setShowAdd(true)}
-            className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition">
-            + Add Resource
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            {[['all', 'All Company'], ['mine', 'My Work']].map(([val, label]) => (
+              <button key={val} onClick={() => setOwner(val)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${owner === val ? 'bg-white shadow text-teal-700' : 'text-gray-500 hover:text-gray-700'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {!showAdd && (
+            <button onClick={() => setShowAdd(true)}
+              className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition">
+              + Add Resource
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="relative mb-6">
@@ -244,7 +262,7 @@ function MyTeamTab() {
       ) : (
         <div className="space-y-3">
           {filtered.map(r => (
-            <ResourceCard key={r.id} resource={r}
+            <ResourceCard key={r.id} resource={r} currentUserId={user?.id}
               onDeleted={id => setResources(p => p.filter(x => x.id !== id))} />
           ))}
         </div>

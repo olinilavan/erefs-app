@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../api';
 import EmployerNav from '../components/EmployerNav';
+import CrossMemberModal from '../components/CrossMemberModal';
+import { useAuth } from '../context/AuthContext';
 
 const STATUS_STYLE = {
   bench:       'bg-blue-100 text-blue-700',
@@ -36,7 +38,7 @@ function SkillTags({ skills }) {
   );
 }
 
-function EditResourceForm({ resource, onSaved, onCancel }) {
+function EditResourceForm({ resource, onSave, onCancel }) {
   const [form, setForm] = useState({
     name:           resource.name            || '',
     email:          resource.email           || '',
@@ -56,10 +58,10 @@ function EditResourceForm({ resource, onSaved, onCancel }) {
     e.preventDefault();
     setSaving(true); setError('');
     try {
-      const r = await api.put(`/api/employer/workforce/${resource.id}`, form);
-      onSaved(r.data);
+      await onSave(form);
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong');
+    } finally {
       setSaving(false);
     }
   }
@@ -275,20 +277,24 @@ function ExtendForm({ placement, resourceId, onSaved, onCancel }) {
 
 export default function WorkforceResource() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [data, setData]       = useState(null);
-  const [error, setError]     = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [crossModal, setCrossModal] = useState(null); // { label, action }
   const [addingPlacement, setAddingPlacement] = useState(false);
   const [extending, setExtending] = useState(false);
   const [ending, setEnding]   = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     api.get(`/api/employer/workforce/${id}`)
       .then(r => setData(r.data))
-      .catch(() => setError(true));
+      .catch(() => setLoadError(true));
   }, [id]);
 
-  if (error) return (
+  if (loadError) return (
     <div className="min-h-screen bg-gray-50"><EmployerNav />
       <div className="text-center py-20 text-gray-400">Resource not found.</div>
     </div>
@@ -299,7 +305,33 @@ export default function WorkforceResource() {
     </div>
   );
 
-  const { resource, placements, activePlacement } = data;
+  const { resource, placements } = data;
+  const activePlacement = placements?.find(p => p.status === 'active') || null;
+  const isCrossMember = resource.employer_id !== user?.id;
+
+  function withCrossCheck(label, action) {
+    if (isCrossMember) {
+      setCrossModal({ label, action });
+    } else {
+      action(null);
+    }
+  }
+
+  async function saveEdit(formData, note) {
+    const r = await api.put(`/api/employer/workforce/${id}`, { ...formData, note });
+    setData(d => ({ ...d, resource: r.data }));
+    setEditing(false);
+  }
+
+  async function handleDelete(note) {
+    setDeleting(true);
+    try {
+      await api.delete(`/api/employer/workforce/${id}`, { data: { note } });
+      navigate('/employer/workforce');
+    } catch {
+      setDeleting(false);
+    }
+  }
 
   async function endPlacement() {
     if (!window.confirm('Mark this placement as ended? The resource will return to bench.')) return;
@@ -319,6 +351,14 @@ export default function WorkforceResource() {
   return (
     <div className="min-h-screen bg-gray-50">
       <EmployerNav />
+      {crossModal && (
+        <CrossMemberModal
+          ownerName={resource.created_by_name || 'your teammate'}
+          actionLabel={crossModal.label}
+          onConfirm={async (note) => { await crossModal.action(note); setCrossModal(null); }}
+          onCancel={() => setCrossModal(null)}
+        />
+      )}
       <main className="max-w-3xl mx-auto px-4 md:px-8 py-8 md:py-10">
         <Link to="/employer/workforce" className="text-sm text-teal-600 hover:underline">← Workforce</Link>
 
@@ -332,12 +372,23 @@ export default function WorkforceResource() {
               </span>
             </div>
             {resource.job_title && <p className="text-sm text-gray-500 mt-0.5">{resource.job_title}</p>}
+            {isCrossMember && resource.created_by_name && (
+              <p className="text-xs text-teal-700 mt-1">Added by <span className="font-medium">{resource.created_by_name}</span></p>
+            )}
           </div>
           {!editing && (
-            <button onClick={() => setEditing(true)}
-              className="text-sm border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition">
-              Edit
-            </button>
+            <div className="flex gap-2">
+              <button onClick={() => setEditing(true)}
+                className="text-sm border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition">
+                Edit
+              </button>
+              <button
+                onClick={() => { if (window.confirm(`Remove ${resource.name} from your workforce?`)) withCrossCheck('delete this resource', handleDelete); }}
+                disabled={deleting}
+                className="text-sm border border-red-200 text-red-500 px-4 py-2 rounded-lg hover:bg-red-50 transition disabled:opacity-50">
+                {deleting ? 'Removing…' : 'Remove'}
+              </button>
+            </div>
           )}
         </div>
 
@@ -346,7 +397,13 @@ export default function WorkforceResource() {
             <h2 className="font-semibold text-gray-800 mb-4">Edit Resource</h2>
             <EditResourceForm
               resource={resource}
-              onSaved={updated => { setData(d => ({ ...d, resource: updated })); setEditing(false); }}
+              onSave={formData => {
+                if (isCrossMember) {
+                  setCrossModal({ label: 'edit this resource', action: note => saveEdit(formData, note) });
+                } else {
+                  return saveEdit(formData, null);
+                }
+              }}
               onCancel={() => setEditing(false)}
             />
           </div>

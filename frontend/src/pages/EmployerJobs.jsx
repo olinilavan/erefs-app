@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import api from '../api';
 import EmployerNav from '../components/EmployerNav';
 import Tooltip from '../components/Tooltip';
+import CrossMemberModal from '../components/CrossMemberModal';
+import { useAuth } from '../context/AuthContext';
 
 const WORK_REQUIREMENTS = ['US Citizen', 'Green Card', 'H1B Sponsorship Available', 'Any'];
 
@@ -108,24 +110,34 @@ function JobForm({ initial, defaultIsPublic, onSubmit, onCancel, submitLabel }) 
   );
 }
 
-function JobCard({ job, onUpdated, onDeleted }) {
+function JobCard({ job, currentUserId, onUpdated, onDeleted }) {
   const [editing, setEditing] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [crossModal, setCrossModal] = useState(null); // { action, label }
 
   const isExpired = job.expires_at && new Date(job.expires_at) < new Date();
+  const isCrossMember = job.employer_id !== currentUserId;
 
-  async function togglePublic() {
-    await api.patch(`/api/employer/jobs/${job.id}`, { isPublic: !job.is_public });
+  function withCrossCheck(label, action) {
+    if (isCrossMember) {
+      setCrossModal({ label, action });
+    } else {
+      action(null);
+    }
+  }
+
+  async function togglePublic(note) {
+    await api.patch(`/api/employer/jobs/${job.id}`, { isPublic: !job.is_public, note });
     onUpdated();
   }
 
-  async function toggleStatus() {
-    await api.patch(`/api/employer/jobs/${job.id}`, { status: job.status === 'active' ? 'closed' : 'active' });
+  async function toggleStatus(note) {
+    await api.patch(`/api/employer/jobs/${job.id}`, { status: job.status === 'active' ? 'closed' : 'active', note });
     onUpdated();
   }
 
-  async function handleDelete() {
-    await api.delete(`/api/employer/jobs/${job.id}`);
+  async function handleDelete(note) {
+    await api.delete(`/api/employer/jobs/${job.id}`, { data: { note } });
     setConfirmingDelete(false);
     onDeleted();
   }
@@ -143,9 +155,17 @@ function JobCard({ job, onUpdated, onDeleted }) {
           initial={job}
           submitLabel="Save Changes"
           onSubmit={async data => {
-            await api.patch(`/api/employer/jobs/${job.id}`, data);
-            setEditing(false);
-            onUpdated();
+            if (isCrossMember) {
+              setCrossModal({ label: 'edit this job', action: async (note) => {
+                await api.patch(`/api/employer/jobs/${job.id}`, { ...data, note });
+                setEditing(false);
+                onUpdated();
+              }});
+            } else {
+              await api.patch(`/api/employer/jobs/${job.id}`, data);
+              setEditing(false);
+              onUpdated();
+            }
           }}
           onCancel={() => setEditing(false)}
         />
@@ -155,10 +175,18 @@ function JobCard({ job, onUpdated, onDeleted }) {
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5">
+      {crossModal && (
+        <CrossMemberModal
+          ownerName={job.created_by_name}
+          actionLabel={crossModal.label}
+          onConfirm={async (note) => { await crossModal.action(note); setCrossModal(null); }}
+          onCancel={() => setCrossModal(null)}
+        />
+      )}
       {confirmingDelete && (
         <ConfirmModal
           message="This will permanently delete the job posting and all its applicants. This cannot be undone."
-          onConfirm={handleDelete}
+          onConfirm={() => withCrossCheck('delete this job', handleDelete)}
           onCancel={() => setConfirmingDelete(false)}
         />
       )}
@@ -201,6 +229,12 @@ function JobCard({ job, onUpdated, onDeleted }) {
         </p>
       )}
 
+      {isCrossMember && job.created_by_name && (
+        <div className="mt-2 text-xs text-teal-700">
+          Posted by <span className="font-medium">{job.created_by_name}</span>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
         <Link to={`/employer/jobs/${job.id}/applicants`} className="text-sm text-teal-600 hover:underline font-medium">
           {job.applicant_count} applicant{job.applicant_count !== '1' ? 's' : ''} →
@@ -209,7 +243,7 @@ function JobCard({ job, onUpdated, onDeleted }) {
           <button onClick={() => setEditing(true)} className="text-xs text-gray-500 hover:text-teal-600 transition">
             Edit
           </button>
-          <button onClick={togglePublic} className="text-xs text-gray-500 hover:text-teal-600 transition">
+          <button onClick={() => withCrossCheck('toggle visibility', togglePublic)} className="text-xs text-gray-500 hover:text-teal-600 transition">
             {job.is_public ? '✓ Open to Public' : 'Vendor Only'}
           </button>
           {!job.flash_status && job.is_public && (
@@ -220,7 +254,7 @@ function JobCard({ job, onUpdated, onDeleted }) {
               </button>
             </Tooltip>
           )}
-          <button onClick={toggleStatus} className="text-xs text-gray-500 hover:text-gray-700 transition">
+          <button onClick={() => withCrossCheck(`${job.status === 'active' ? 'close' : 'reopen'} this job`, toggleStatus)} className="text-xs text-gray-500 hover:text-gray-700 transition">
             {job.status === 'active' ? 'Close' : 'Reopen'}
           </button>
           <button onClick={() => setConfirmingDelete(true)} className="text-xs text-gray-500 hover:text-red-600 transition">
@@ -233,13 +267,15 @@ function JobCard({ job, onUpdated, onDeleted }) {
 }
 
 export default function EmployerJobs() {
+  const { user } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [showNew, setShowNew] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [defaultIsPublic, setDefaultIsPublic] = useState(true);
+  const [owner, setOwner] = useState('all');
 
   function load() {
-    api.get('/api/employer/jobs').then(r => {
+    api.get(`/api/employer/jobs?owner=${owner}`).then(r => {
       setJobs(r.data);
       setLoaded(true);
     });
@@ -247,6 +283,9 @@ export default function EmployerJobs() {
 
   useEffect(() => {
     load();
+  }, [owner]);
+
+  useEffect(() => {
     api.get('/api/settings').then(r => setDefaultIsPublic(r.data.default_job_is_public !== false));
   }, []);
 
@@ -265,12 +304,22 @@ export default function EmployerJobs() {
               <Link to="/employer/vendor-jobs" className="text-xs text-teal-600 hover:underline">Vendor Jobs →</Link>
             </div>
           </div>
-          {!showNew && (
-            <button onClick={() => setShowNew(true)}
-              className="bg-teal-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-teal-700 transition">
-              + Post a Job
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              {[['all', 'All Company'], ['mine', 'My Work']].map(([val, label]) => (
+                <button key={val} onClick={() => setOwner(val)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${owner === val ? 'bg-white shadow text-teal-700' : 'text-gray-500 hover:text-gray-700'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {!showNew && (
+              <button onClick={() => setShowNew(true)}
+                className="bg-teal-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-teal-700 transition">
+                + Post a Job
+              </button>
+            )}
+          </div>
         </div>
 
         {showNew && (
@@ -294,11 +343,13 @@ export default function EmployerJobs() {
         ) : jobs.length === 0 ? (
           <div className="text-center py-20 text-gray-400">
             <div className="text-5xl mb-4">📋</div>
-            <p>No job postings yet.</p>
+            <p>{owner === 'mine' ? 'No job postings by you yet.' : 'No job postings yet.'}</p>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 gap-4">
-            {jobs.map(job => <JobCard key={job.id} job={job} onUpdated={load} onDeleted={load} />)}
+            {jobs.map(job => (
+              <JobCard key={job.id} job={job} currentUserId={user?.id} onUpdated={load} onDeleted={load} />
+            ))}
           </div>
         )}
       </main>
