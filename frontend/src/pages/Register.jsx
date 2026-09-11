@@ -79,7 +79,7 @@ export default function Register() {
           </p>
           <p className="text-xs text-gray-400">
             Didn't receive it?{' '}
-            <button onClick={async (e) => {
+            <button onClick={async () => {
               try {
                 await api.post('/api/auth/resend-verification', { email: form.email });
                 alert('Verification email resent.');
@@ -109,7 +109,7 @@ export default function Register() {
         )}
         {inviteToken && inviteCompany && (
           <div className="bg-teal-50 border border-teal-200 rounded-lg px-4 py-3 mb-4 text-sm text-teal-800">
-            You've been invited to join <strong>{inviteCompany}</strong> on eRefs.
+            You've been invited to join <strong>{inviteCompany}</strong> on VouchMetrics.
           </div>
         )}
         {error && <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm">{error}</div>}
