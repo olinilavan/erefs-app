@@ -108,8 +108,16 @@ function EducationCard({ entry, onUpdated }) {
 
 export default function BackgroundCheckDetail() {
   const { id } = useParams();
-  const [data, setData]   = useState(null);
-  const [error, setError] = useState(false);
+  const [data, setData]         = useState(null);
+  const [error, setError]       = useState(false);
+  const [editingInfo, setEditingInfo] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [savingInfo, setSavingInfo] = useState(false);
+  const [infoError, setInfoError]   = useState('');
+  const [addingRef, setAddingRef]   = useState(false);
+  const [refForm, setRefForm]       = useState({ name: '', email: '' });
+  const [savingRef, setSavingRef]   = useState(false);
+  const [refError, setRefError]     = useState('');
 
   function load() {
     api.get(`/api/employer/bg-checks/${id}`)
@@ -121,6 +129,34 @@ export default function BackgroundCheckDetail() {
 
   function updateEducationEntry(updated) {
     setData(d => ({ ...d, education: d.education.map(e => e.id === updated.id ? updated : e) }));
+  }
+
+  async function saveInfo(e) {
+    e.preventDefault();
+    setSavingInfo(true); setInfoError('');
+    try {
+      const r = await api.patch(`/api/employer/bg-checks/${id}`, editForm);
+      setData(d => ({ ...d, check: r.data }));
+      setEditingInfo(false);
+    } catch (err) {
+      setInfoError(err.response?.data?.error || 'Something went wrong');
+    } finally {
+      setSavingInfo(false);
+    }
+  }
+
+  async function saveReferrer(e) {
+    e.preventDefault();
+    setSavingRef(true); setRefError('');
+    try {
+      const r = await api.post(`/api/employer/bg-checks/${id}/referrers`, refForm);
+      setData(d => ({ ...d, referrers: [...d.referrers, r.data] }));
+      setRefForm({ name: '', email: '' });
+      setAddingRef(false);
+    } catch (err) {
+      setRefError(err.response?.data?.error || 'Something went wrong');
+      setSavingRef(false);
+    }
   }
 
   if (error) return (
@@ -138,6 +174,8 @@ export default function BackgroundCheckDetail() {
   );
 
   const { check, education, criminal, referrers } = data;
+  const canEditInfo = ['invited', 'in_progress'].includes(check.status);
+  const canAddReferrer = check.include_reference && referrers.length > 0;
 
   const checksRequested = [
     check.include_reference && '📋 Reference Check',
@@ -165,23 +203,147 @@ export default function BackgroundCheckDetail() {
               ))}
             </div>
           </div>
-          <div className="text-right">
+          <div className="text-right flex flex-col items-end gap-2">
             <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_STYLE[check.status]}`}>
               {STATUS_LABEL[check.status] || check.status}
             </span>
             {check.expires_at && (
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="text-xs text-gray-400">
                 Deadline: {new Date(check.expires_at).toLocaleDateString()}
               </div>
             )}
+                    {canEditInfo && !editingInfo && (
+              <button
+                onClick={() => {
+                  setEditForm({
+                    candidateName: check.candidate_name,
+                    candidateEmail: check.candidate_email,
+                    targetRole: check.target_role || '',
+                    includeReference: check.include_reference,
+                    includeEducation: check.include_education,
+                    includeCriminal: check.include_criminal,
+                  });
+                  setEditingInfo(true);
+                }}
+                className="text-xs text-teal-600 hover:underline font-medium">
+                Edit details
+              </button>
+            )}
           </div>
         </div>
+
+        {editingInfo && (
+          <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+            <h3 className="font-semibold text-gray-800 mb-3 text-sm">Edit Candidate Details</h3>
+            <form onSubmit={saveInfo} className="space-y-3">
+              {infoError && <p className="text-sm text-red-500">{infoError}</p>}
+              <div className="grid md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Name</label>
+                  <input value={editForm.candidateName} onChange={e => setEditForm(f => ({ ...f, candidateName: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Email</label>
+                  <input type="email" value={editForm.candidateEmail} onChange={e => setEditForm(f => ({ ...f, candidateEmail: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Target role</label>
+                <input value={editForm.targetRole} onChange={e => setEditForm(f => ({ ...f, targetRole: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+              </div>
+
+              <div>
+                <p className="text-xs text-gray-500 mb-2">Checks to run</p>
+                <div className="flex flex-wrap gap-4">
+                  {[
+                    ['includeReference', '📋 Reference Check'],
+                    ['includeEducation', '🎓 Education Verification'],
+                    ['includeCriminal',  '🔍 Criminal Check'],
+                  ].map(([key, label]) => (
+                    <label key={key} className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={!!editForm[key]}
+                        onChange={e => setEditForm(f => ({ ...f, [key]: e.target.checked }))}
+                        className="accent-teal-600 w-4 h-4" />
+                      <span className="text-sm text-gray-700">{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {(editForm.candidateEmail !== check.candidate_email ||
+                editForm.includeReference !== check.include_reference ||
+                editForm.includeEducation !== check.include_education ||
+                editForm.includeCriminal  !== check.include_criminal) && (
+                <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                  The updated invite will be resent to the candidate with the latest details.
+                </p>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <button type="submit" disabled={savingInfo}
+                  className="bg-teal-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50 transition">
+                  {savingInfo ? 'Saving…' : 'Save Changes'}
+                </button>
+                <button type="button" onClick={() => { setEditingInfo(false); setInfoError(''); }}
+                  className="border border-gray-300 px-4 py-1.5 rounded-lg text-sm hover:bg-gray-50 transition">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
         <div className="space-y-6">
           {/* Reference checks */}
           {check.include_reference && (
             <section>
-              <h2 className="font-semibold text-gray-800 mb-3">📋 References</h2>
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="font-semibold text-gray-800">📋 References</h2>
+                {canAddReferrer && !addingRef && (
+                  <button onClick={() => setAddingRef(true)}
+                    className="text-xs text-teal-600 border border-teal-200 px-3 py-1.5 rounded-lg hover:bg-teal-50 transition font-medium">
+                    + Add Referee
+                  </button>
+                )}
+              </div>
+
+              {addingRef && (
+                <div className="bg-white rounded-xl border border-gray-200 p-5 mb-3">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-3">Add Additional Referee</h3>
+                  <form onSubmit={saveReferrer} className="space-y-3">
+                    {refError && <p className="text-sm text-red-500">{refError}</p>}
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Referee name *</label>
+                        <input required value={refForm.name} onChange={e => setRefForm(f => ({ ...f, name: e.target.value }))}
+                          placeholder="Jane Smith"
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Referee email *</label>
+                        <input required type="email" value={refForm.email} onChange={e => setRefForm(f => ({ ...f, email: e.target.value }))}
+                          placeholder="jane@company.com"
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400">An invite will be sent to this referee immediately.</p>
+                    <div className="flex gap-2">
+                      <button type="submit" disabled={savingRef}
+                        className="bg-teal-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50 transition">
+                        {savingRef ? 'Sending…' : 'Send Invite'}
+                      </button>
+                      <button type="button" onClick={() => { setAddingRef(false); setRefError(''); }}
+                        className="border border-gray-300 px-4 py-1.5 rounded-lg text-sm hover:bg-gray-50 transition">
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
               {referrers.length === 0 ? (
                 <div className="bg-white rounded-xl border border-gray-200 px-5 py-6 text-center text-gray-400 text-sm">
                   {check.status === 'invited' || check.status === 'in_progress'

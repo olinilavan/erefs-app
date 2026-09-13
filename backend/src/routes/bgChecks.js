@@ -115,6 +115,121 @@ employerRouter.get('/bg-checks/:id', auth, requireEmployer, async (req, res) => 
   });
 });
 
+// PATCH /api/employer/bg-checks/:id — edit candidate details + check types (invited or in_progress only)
+employerRouter.patch('/bg-checks/:id', auth, requireEmployer, async (req, res) => {
+  const { candidateName, candidateEmail, targetRole, includeReference, includeEducation, includeCriminal } = req.body;
+
+  const memberIds = await getCompanyMemberIds(req.user.id);
+  const existing = await db.query(
+    `SELECT bc.*, u.name AS employer_name, u.email AS employer_email, u.company AS employer_company
+     FROM background_checks bc
+     JOIN users u ON u.id = bc.employer_id
+     WHERE bc.id = $1 AND bc.employer_id = ANY($2::uuid[])`,
+    [req.params.id, memberIds]
+  );
+  if (!existing.rows.length) return res.status(404).json({ error: 'Not found' });
+
+  const check = existing.rows[0];
+  if (!['invited', 'in_progress'].includes(check.status)) {
+    return res.status(409).json({ error: 'Cannot edit after candidate has submitted' });
+  }
+
+  // Resolve effective check types after update (to validate at least one remains)
+  const effRef  = includeReference  !== undefined ? !!includeReference  : check.include_reference;
+  const effEdu  = includeEducation  !== undefined ? !!includeEducation  : check.include_education;
+  const effCrim = includeCriminal   !== undefined ? !!includeCriminal   : check.include_criminal;
+  if (!effRef && !effEdu && !effCrim) {
+    return res.status(400).json({ error: 'At least one check type must be selected' });
+  }
+
+  const emailChanged  = candidateEmail && candidateEmail !== check.candidate_email;
+  const checksChanged =
+    (includeReference !== undefined && !!includeReference !== check.include_reference) ||
+    (includeEducation !== undefined && !!includeEducation !== check.include_education) ||
+    (includeCriminal  !== undefined && !!includeCriminal  !== check.include_criminal);
+
+  // Use CASE WHEN … IS NOT NULL to allow setting booleans to false
+  const result = await db.query(
+    `UPDATE background_checks
+     SET candidate_name    = COALESCE($1, candidate_name),
+         candidate_email   = COALESCE($2, candidate_email),
+         target_role       = COALESCE($3, target_role),
+         include_reference = CASE WHEN $4::boolean IS NOT NULL THEN $4 ELSE include_reference END,
+         include_education = CASE WHEN $5::boolean IS NOT NULL THEN $5 ELSE include_education END,
+         include_criminal  = CASE WHEN $6::boolean IS NOT NULL THEN $6 ELSE include_criminal  END
+     WHERE id = $7
+     RETURNING *`,
+    [
+      candidateName   || null,
+      candidateEmail  || null,
+      targetRole      || null,
+      includeReference !== undefined ? !!includeReference  : null,
+      includeEducation !== undefined ? !!includeEducation  : null,
+      includeCriminal  !== undefined ? !!includeCriminal   : null,
+      check.id,
+    ]
+  );
+
+  if (emailChanged || checksChanged) {
+    const updated = result.rows[0];
+    sendBgCheckInvite(
+      { name: updated.candidate_name, email: updated.candidate_email, role: updated.target_role },
+      { name: check.employer_name, email: check.employer_email, company: check.employer_company },
+      updated.token,
+      { reference: updated.include_reference, education: updated.include_education, criminal: updated.include_criminal },
+      updated.deadline_days
+    ).catch(err => console.error('[bg check resend failed]', err.message));
+  }
+
+  res.json(result.rows[0]);
+});
+
+// POST /api/employer/bg-checks/:id/referrers — add a referrer after candidate submission
+employerRouter.post('/bg-checks/:id/referrers', auth, requireEmployer, async (req, res) => {
+  const { name, email } = req.body;
+  if (!name || !email) return res.status(400).json({ error: 'Name and email are required' });
+
+  const memberIds = await getCompanyMemberIds(req.user.id);
+  const checkResult = await db.query(
+    `SELECT bc.*, u.name AS employer_name, u.email AS employer_email,
+            u.company AS employer_company, u.reminder_days
+     FROM background_checks bc
+     JOIN users u ON u.id = bc.employer_id
+     WHERE bc.id = $1 AND bc.employer_id = ANY($2::uuid[])`,
+    [req.params.id, memberIds]
+  );
+  if (!checkResult.rows.length) return res.status(404).json({ error: 'Not found' });
+
+  const check = checkResult.rows[0];
+  if (!check.include_reference) {
+    return res.status(400).json({ error: 'This check does not include reference checks' });
+  }
+
+  const rrResult = await db.query(
+    `SELECT * FROM referral_requests WHERE bg_check_id = $1`,
+    [check.id]
+  );
+  if (!rrResult.rows.length) {
+    return res.status(409).json({ error: 'Candidate has not yet submitted their references. Add more referrers once they complete their intake.' });
+  }
+
+  const referralRequest = rrResult.rows[0];
+  const refResult = await db.query(
+    `INSERT INTO referrers (referral_request_id, name, email) VALUES ($1, $2, $3) RETURNING *`,
+    [referralRequest.id, name, email]
+  );
+  const referrer = refResult.rows[0];
+
+  const employer = {
+    name: check.employer_name, email: check.employer_email,
+    company: check.employer_company, reminder_days: check.reminder_days || 0,
+  };
+  sendReferrerInvite(referrer, referralRequest, employer, check.reminder_days || 0)
+    .catch(err => console.error('[add referrer invite failed]', err.message));
+
+  res.status(201).json(referrer);
+});
+
 // PATCH /api/employer/bg-checks/:id/education/:entryId — verify/flag an education entry
 employerRouter.patch('/bg-checks/:id/education/:entryId', auth, requireEmployer, async (req, res) => {
   const { verificationStatus, verificationNotes } = req.body;
