@@ -24,10 +24,19 @@ const STATUS_LABEL = {
 };
 
 const EDU_VERIFY_STYLE = {
-  pending:     'bg-gray-100 text-gray-500',
-  verifying:   'bg-yellow-100 text-yellow-700',
-  verified:    'bg-green-100 text-green-700',
-  discrepancy: 'bg-red-100 text-red-600',
+  pending:        'bg-gray-100 text-gray-500',
+  verifying:      'bg-yellow-100 text-yellow-700',
+  verified:       'bg-green-100 text-green-700',
+  discrepancy:    'bg-red-100 text-red-600',
+  unable_to_reach:'bg-orange-100 text-orange-700',
+};
+
+const EMP_VERIFY_LABEL = {
+  pending:        'Pending',
+  verifying:      'Verifying',
+  verified:       'Verified',
+  discrepancy:    'Discrepancy',
+  unable_to_reach:'Unable to Reach',
 };
 
 const REFERRER_STATUS_STYLE = {
@@ -38,18 +47,128 @@ const REFERRER_STATUS_STYLE = {
   call_requested:'bg-purple-100 text-purple-700',
 };
 
+function EmploymentCard({ entry, onUpdated }) {
+  const [editing, setEditing]           = useState(false);
+  const [status, setStatus]             = useState(entry.verification_status);
+  const [contactPerson, setContactPerson] = useState(entry.contact_person || '');
+  const [contactRole, setContactRole]   = useState(entry.contact_role || '');
+  const [contactPhone, setContactPhone] = useState(entry.contact_phone || '');
+  const [notes, setNotes]               = useState(entry.verification_notes || '');
+  const [saving, setSaving]             = useState(false);
+
+  const dateRange = (() => {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const from = [entry.start_month ? months[entry.start_month - 1] : null, entry.start_year].filter(Boolean).join(' ');
+    const to   = entry.is_current ? 'Present'
+      : [entry.end_month ? months[entry.end_month - 1] : null, entry.end_year].filter(Boolean).join(' ');
+    return [from, to].filter(Boolean).join(' – ');
+  })();
+
+  async function save() {
+    setSaving(true);
+    try {
+      const r = await api.patch(
+        `/api/employer/bg-checks/${entry.check_id}/employment/${entry.id}`,
+        { verificationStatus: status, contactPerson, contactRole, contactPhone, verificationNotes: notes }
+      );
+      onUpdated(r.data);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
+      <div className="flex justify-between items-start">
+        <div>
+          <div className="font-medium text-gray-800">{entry.job_title} — {entry.employer_name}</div>
+          {dateRange && <div className="text-xs text-gray-400 mt-0.5">{dateRange}</div>}
+          {entry.supervisor_name && (
+            <div className="text-xs text-gray-500 mt-0.5">
+              Supervisor: {entry.supervisor_name}
+              {entry.supervisor_contact && <span className="text-gray-400"> · {entry.supervisor_contact}</span>}
+            </div>
+          )}
+          {entry.reason_for_leaving && (
+            <div className="text-xs text-gray-400 mt-0.5 italic">Left: {entry.reason_for_leaving}</div>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0 ml-3">
+          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${EDU_VERIFY_STYLE[entry.verification_status]}`}>
+            {EMP_VERIFY_LABEL[entry.verification_status] || entry.verification_status}
+          </span>
+          <button onClick={() => setEditing(!editing)}
+            className="text-xs text-teal-600 hover:underline font-medium">
+            {editing ? 'Cancel' : 'Update'}
+          </button>
+        </div>
+      </div>
+
+      {!editing && (entry.contact_person || entry.verification_notes) && (
+        <div className="mt-2 bg-gray-50 rounded-lg px-3 py-2 space-y-0.5">
+          {entry.contact_person && (
+            <p className="text-xs text-gray-600">
+              Spoke with: <span className="font-medium">{entry.contact_person}</span>
+              {entry.contact_role && <span className="text-gray-400"> · {entry.contact_role}</span>}
+              {entry.contact_phone && <span className="text-gray-400"> · {entry.contact_phone}</span>}
+            </p>
+          )}
+          {entry.verification_notes && (
+            <p className="text-sm text-gray-600">{entry.verification_notes}</p>
+          )}
+        </div>
+      )}
+
+      {editing && (
+        <div className="mt-3 space-y-2">
+          <select value={status} onChange={e => setStatus(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+            <option value="pending">Pending</option>
+            <option value="verifying">Verifying (called employer)</option>
+            <option value="verified">Verified ✓</option>
+            <option value="discrepancy">Discrepancy found</option>
+            <option value="unable_to_reach">Unable to reach</option>
+          </select>
+          <div className="grid grid-cols-2 gap-2">
+            <input value={contactPerson} onChange={e => setContactPerson(e.target.value)}
+              placeholder="Contact person name"
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+            <input value={contactRole} onChange={e => setContactRole(e.target.value)}
+              placeholder="Their role / title"
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+          </div>
+          <input value={contactPhone} onChange={e => setContactPhone(e.target.value)}
+            placeholder="Phone number called"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+          <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
+            placeholder="Verification notes — what was discussed, any discrepancies, feedback given…"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+          <button onClick={save} disabled={saving}
+            className="text-xs bg-teal-600 text-white px-4 py-1.5 rounded-lg hover:bg-teal-700 disabled:opacity-50">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EducationCard({ entry, onUpdated }) {
-  const [editing, setEditing] = useState(false);
-  const [status, setStatus]   = useState(entry.verification_status);
-  const [notes, setNotes]     = useState(entry.verification_notes || '');
-  const [saving, setSaving]   = useState(false);
+  const [editing, setEditing]             = useState(false);
+  const [status, setStatus]               = useState(entry.verification_status);
+  const [contactPerson, setContactPerson] = useState(entry.contact_person || '');
+  const [contactRole, setContactRole]     = useState(entry.contact_role || '');
+  const [contactPhone, setContactPhone]   = useState(entry.contact_phone || '');
+  const [notes, setNotes]                 = useState(entry.verification_notes || '');
+  const [saving, setSaving]               = useState(false);
 
   async function save() {
     setSaving(true);
     try {
       const r = await api.patch(
         `/api/employer/bg-checks/${entry.check_id}/education/${entry.id}`,
-        { verificationStatus: status, verificationNotes: notes }
+        { verificationStatus: status, contactPerson, contactRole, contactPhone, verificationNotes: notes }
       );
       onUpdated(r.data);
       setEditing(false);
@@ -69,9 +188,9 @@ function EducationCard({ entry, onUpdated }) {
             {entry.gpa ? ` · GPA ${entry.gpa}` : ''}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${EDU_VERIFY_STYLE[entry.verification_status]}`}>
-            {entry.verification_status}
+        <div className="flex items-center gap-2 shrink-0 ml-3">
+          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${EDU_VERIFY_STYLE[entry.verification_status]}`}>
+            {EMP_VERIFY_LABEL[entry.verification_status] || entry.verification_status}
           </span>
           <button onClick={() => setEditing(!editing)}
             className="text-xs text-teal-600 hover:underline font-medium">
@@ -80,8 +199,19 @@ function EducationCard({ entry, onUpdated }) {
         </div>
       </div>
 
-      {entry.verification_notes && !editing && (
-        <p className="text-sm text-gray-600 mt-2 bg-gray-50 rounded-lg px-3 py-2">{entry.verification_notes}</p>
+      {!editing && (entry.contact_person || entry.verification_notes) && (
+        <div className="mt-2 bg-gray-50 rounded-lg px-3 py-2 space-y-0.5">
+          {entry.contact_person && (
+            <p className="text-xs text-gray-600">
+              Spoke with: <span className="font-medium">{entry.contact_person}</span>
+              {entry.contact_role && <span className="text-gray-400"> · {entry.contact_role}</span>}
+              {entry.contact_phone && <span className="text-gray-400"> · {entry.contact_phone}</span>}
+            </p>
+          )}
+          {entry.verification_notes && (
+            <p className="text-sm text-gray-600">{entry.verification_notes}</p>
+          )}
+        </div>
       )}
 
       {editing && (
@@ -92,9 +222,21 @@ function EducationCard({ entry, onUpdated }) {
             <option value="verifying">Verifying (called institution)</option>
             <option value="verified">Verified ✓</option>
             <option value="discrepancy">Discrepancy found</option>
+            <option value="unable_to_reach">Unable to reach</option>
           </select>
-          <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)}
-            placeholder="Notes from verification call (optional)"
+          <div className="grid grid-cols-2 gap-2">
+            <input value={contactPerson} onChange={e => setContactPerson(e.target.value)}
+              placeholder="Contact person name"
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+            <input value={contactRole} onChange={e => setContactRole(e.target.value)}
+              placeholder="Their role (e.g. Registrar's Office)"
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+          </div>
+          <input value={contactPhone} onChange={e => setContactPhone(e.target.value)}
+            placeholder="Phone number called"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+          <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
+            placeholder="Verification notes — what was confirmed, any discrepancies…"
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
           <button onClick={save} disabled={saving}
             className="text-xs bg-teal-600 text-white px-4 py-1.5 rounded-lg hover:bg-teal-700 disabled:opacity-50">
@@ -129,6 +271,10 @@ export default function BackgroundCheckDetail() {
 
   function updateEducationEntry(updated) {
     setData(d => ({ ...d, education: d.education.map(e => e.id === updated.id ? updated : e) }));
+  }
+
+  function updateEmploymentEntry(updated) {
+    setData(d => ({ ...d, employment: d.employment.map(e => e.id === updated.id ? updated : e) }));
   }
 
   async function saveInfo(e) {
@@ -173,14 +319,15 @@ export default function BackgroundCheckDetail() {
     </div>
   );
 
-  const { check, education, criminal, referrers } = data;
+  const { check, education, employment, criminal, referrers } = data;
   const canEditInfo = ['invited', 'in_progress'].includes(check.status);
   const canAddReferrer = check.include_reference && referrers.length > 0;
 
   const checksRequested = [
-    check.include_reference && '📋 Reference Check',
-    check.include_education && '🎓 Education Verification',
-    check.include_criminal  && '🔍 Criminal Check',
+    check.include_reference  && '📋 Reference Check',
+    check.include_education  && '🎓 Education Verification',
+    check.include_criminal   && '🔍 Criminal Check',
+    check.include_employment && '💼 Employment Verification',
   ].filter(Boolean);
 
   return (
@@ -219,9 +366,10 @@ export default function BackgroundCheckDetail() {
                     candidateName: check.candidate_name,
                     candidateEmail: check.candidate_email,
                     targetRole: check.target_role || '',
-                    includeReference: check.include_reference,
-                    includeEducation: check.include_education,
-                    includeCriminal: check.include_criminal,
+                    includeReference:  check.include_reference,
+                    includeEducation:  check.include_education,
+                    includeCriminal:   check.include_criminal,
+                    includeEmployment: check.include_employment,
                   });
                   setEditingInfo(true);
                 }}
@@ -259,9 +407,10 @@ export default function BackgroundCheckDetail() {
                 <p className="text-xs text-gray-500 mb-2">Checks to run</p>
                 <div className="flex flex-wrap gap-4">
                   {[
-                    ['includeReference', '📋 Reference Check'],
-                    ['includeEducation', '🎓 Education Verification'],
-                    ['includeCriminal',  '🔍 Criminal Check'],
+                    ['includeReference',  '📋 Reference Check'],
+                    ['includeEducation',  '🎓 Education Verification'],
+                    ['includeCriminal',   '🔍 Criminal Check'],
+                    ['includeEmployment', '💼 Employment Verification'],
                   ].map(([key, label]) => (
                     <label key={key} className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={!!editForm[key]}
@@ -273,10 +422,11 @@ export default function BackgroundCheckDetail() {
                 </div>
               </div>
 
-              {(editForm.candidateEmail !== check.candidate_email ||
-                editForm.includeReference !== check.include_reference ||
-                editForm.includeEducation !== check.include_education ||
-                editForm.includeCriminal  !== check.include_criminal) && (
+              {(editForm.candidateEmail    !== check.candidate_email    ||
+                editForm.includeReference  !== check.include_reference  ||
+                editForm.includeEducation  !== check.include_education  ||
+                editForm.includeCriminal   !== check.include_criminal   ||
+                editForm.includeEmployment !== check.include_employment) && (
                 <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
                   The updated invite will be resent to the candidate with the latest details.
                 </p>
@@ -393,6 +543,29 @@ export default function BackgroundCheckDetail() {
                 <div className="space-y-3">
                   {education.map(e => (
                     <EducationCard key={e.id} entry={e} onUpdated={updateEducationEntry} />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Employment verification */}
+          {check.include_employment && (
+            <section>
+              <h2 className="font-semibold text-gray-800 mb-1">💼 Employment Verification</h2>
+              <p className="text-xs text-gray-400 mb-3">
+                Call each employer to verify tenure and role, then record who you spoke with and any notes below.
+              </p>
+              {employment.length === 0 ? (
+                <div className="bg-white rounded-xl border border-gray-200 px-5 py-6 text-center text-gray-400 text-sm">
+                  {check.status === 'invited' || check.status === 'in_progress'
+                    ? 'Waiting for candidate to submit employment history…'
+                    : 'No employment entries submitted'}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {employment.map(e => (
+                    <EmploymentCard key={e.id} entry={e} onUpdated={updateEmploymentEntry} />
                   ))}
                 </div>
               )}

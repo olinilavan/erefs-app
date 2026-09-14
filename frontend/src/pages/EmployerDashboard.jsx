@@ -24,12 +24,12 @@ const STATUS_LABEL = {
   expired:     'Expired',
 };
 
-const CHECK_ICONS = { reference: '📋', education: '🎓', criminal: '🔍' };
+const CHECK_ICONS = { reference: '📋', education: '🎓', criminal: '🔍', employment: '💼' };
 
 function InitiateForm({ onSubmitted, onCancel }) {
   const [form, setForm] = useState({
     candidateName: '', candidateEmail: '', targetRole: '',
-    includeReference: true, includeEducation: false, includeCriminal: false,
+    includeReference: true, includeEducation: false, includeCriminal: false, includeEmployment: false,
     deadlineDays: 7,
   });
   const [saving, setSaving] = useState(false);
@@ -74,9 +74,10 @@ function InitiateForm({ onSubmitted, onCancel }) {
           <p className="text-sm font-medium text-gray-700 mb-2">Checks to run *</p>
           <div className="flex flex-wrap gap-3">
             {[
-              ['includeReference', '📋 Reference Check'],
-              ['includeEducation', '🎓 Education Verification'],
-              ['includeCriminal',  '🔍 Criminal Check'],
+              ['includeReference',  '📋 Reference Check'],
+              ['includeEducation',  '🎓 Education Verification'],
+              ['includeEmployment', '💼 Employment Verification'],
+              ['includeCriminal',   '🔍 Criminal Check'],
             ].map(([key, label]) => (
               <label key={key} className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form[key]}
@@ -305,9 +306,10 @@ export default function EmployerDashboard() {
                         <td className="px-6 py-4 text-sm text-gray-500">{c.target_role || '—'}</td>
                         <td className="px-6 py-4">
                           <div className="flex gap-1">
-                            {c.include_reference && <span title="Reference Check" className="text-base">{CHECK_ICONS.reference}</span>}
-                            {c.include_education && <span title="Education Verification" className="text-base">{CHECK_ICONS.education}</span>}
-                            {c.include_criminal  && <span title="Criminal Check" className="text-base">{CHECK_ICONS.criminal}</span>}
+                            {c.include_reference  && <span title="Reference Check"          className="text-base">{CHECK_ICONS.reference}</span>}
+                            {c.include_education  && <span title="Education Verification"   className="text-base">{CHECK_ICONS.education}</span>}
+                            {c.include_employment && <span title="Employment Verification"  className="text-base">{CHECK_ICONS.employment}</span>}
+                            {c.include_criminal   && <span title="Criminal Check"           className="text-base">{CHECK_ICONS.criminal}</span>}
                           </div>
                           {c.include_reference && (
                             <div className="text-xs text-gray-400 mt-0.5">{c.ref_completed}/{c.ref_total} refs</div>

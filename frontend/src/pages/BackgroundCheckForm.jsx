@@ -129,6 +129,94 @@ function EducationSection({ entries, onChange }) {
   );
 }
 
+// ── Employment section ───────────────────────────────────────────────────────
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function EmploymentSection({ entries, onChange }) {
+  function add() {
+    onChange([...entries, {
+      employerName: '', jobTitle: '', startYear: '', startMonth: '',
+      endYear: '', endMonth: '', isCurrent: false,
+      supervisorName: '', supervisorContact: '', reasonForLeaving: '',
+    }]);
+  }
+  function update(i, field, value) {
+    const next = [...entries];
+    next[i] = { ...next[i], [field]: value };
+    onChange(next);
+  }
+  function remove(i) {
+    onChange(entries.filter((_, idx) => idx !== i));
+  }
+
+  return (
+    <div className="space-y-4">
+      {entries.map((e, i) => (
+        <div key={i} className="bg-gray-50 rounded-xl border border-gray-200 p-4 space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium text-gray-700">Employer {i + 1}</span>
+            {entries.length > 1 && (
+              <button type="button" onClick={() => remove(i)}
+                className="text-xs text-gray-400 hover:text-red-500 transition">Remove</button>
+            )}
+          </div>
+          <div className="grid md:grid-cols-2 gap-3">
+            <input type="text" placeholder="Employer / company name *" required value={e.employerName}
+              onChange={ev => update(i, 'employerName', ev.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+            <input type="text" placeholder="Job title *" required value={e.jobTitle}
+              onChange={ev => update(i, 'jobTitle', ev.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <select value={e.startMonth} onChange={ev => update(i, 'startMonth', ev.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+              <option value="">Start month</option>
+              {MONTHS.map((m, idx) => <option key={m} value={idx + 1}>{m}</option>)}
+            </select>
+            <input type="number" placeholder="Start year" min="1950" max="2100" value={e.startYear}
+              onChange={ev => update(i, 'startYear', ev.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+            <select value={e.endMonth} onChange={ev => update(i, 'endMonth', ev.target.value)}
+              disabled={e.isCurrent}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 disabled:opacity-40">
+              <option value="">End month</option>
+              {MONTHS.map((m, idx) => <option key={m} value={idx + 1}>{m}</option>)}
+            </select>
+            <input type="number" placeholder="End year" min="1950" max="2100" value={e.endYear}
+              disabled={e.isCurrent}
+              onChange={ev => update(i, 'endYear', ev.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 disabled:opacity-40" />
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={e.isCurrent}
+              onChange={ev => update(i, 'isCurrent', ev.target.checked)}
+              className="accent-teal-600" />
+            <span className="text-sm text-gray-700">I currently work here</span>
+          </label>
+          <div className="grid md:grid-cols-2 gap-3">
+            <input type="text" placeholder="Supervisor name (optional)" value={e.supervisorName}
+              onChange={ev => update(i, 'supervisorName', ev.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+            <input type="text" placeholder="Supervisor phone / email (optional)" value={e.supervisorContact}
+              onChange={ev => update(i, 'supervisorContact', ev.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+          </div>
+          {!e.isCurrent && (
+            <input type="text" placeholder="Reason for leaving (optional)" value={e.reasonForLeaving}
+              onChange={ev => update(i, 'reasonForLeaving', ev.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+          )}
+        </div>
+      ))}
+      <button type="button" onClick={add}
+        className="text-sm text-teal-600 hover:text-teal-800 font-medium transition">
+        + Add another employer
+      </button>
+    </div>
+  );
+}
+
 // ── Criminal section ─────────────────────────────────────────────────────────
 function CriminalSection({ criminal, onChange }) {
   return (
@@ -182,6 +270,10 @@ export default function BackgroundCheckForm() {
     { institution: '', degreeType: '', fieldOfStudy: '', startYear: '', graduationYear: '', gpa: '' },
   ]);
   const [criminal, setCriminal] = useState({ dateOfBirth: '', address: '', consentGiven: false });
+  const [employment, setEmployment] = useState([
+    { employerName: '', jobTitle: '', startYear: '', startMonth: '', endYear: '', endMonth: '',
+      isCurrent: false, supervisorName: '', supervisorContact: '', reasonForLeaving: '' },
+  ]);
 
   useEffect(() => {
     api.get(`/api/bg/${token}`)
@@ -198,9 +290,10 @@ export default function BackgroundCheckForm() {
     setSubmitting(true);
     try {
       await api.post(`/api/bg/${token}/submit`, {
-        references: check.include_reference ? references : [],
-        education:  check.include_education  ? education  : [],
-        criminal:   check.include_criminal   ? criminal   : null,
+        references:  check.include_reference  ? references  : [],
+        education:   check.include_education  ? education   : [],
+        employment:  check.include_employment ? employment  : [],
+        criminal:    check.include_criminal   ? criminal    : null,
       });
       setSubmitted(true);
     } catch (err) {
@@ -263,9 +356,10 @@ export default function BackgroundCheckForm() {
   }
 
   const checksRequested = [
-    check.include_reference && 'Reference Check',
-    check.include_education && 'Education Verification',
-    check.include_criminal  && 'Criminal Background Check',
+    check.include_reference  && 'Reference Check',
+    check.include_education  && 'Education Verification',
+    check.include_employment && 'Employment Verification',
+    check.include_criminal   && 'Criminal Background Check',
   ].filter(Boolean);
 
   let sectionNum = 1;
@@ -316,6 +410,17 @@ export default function BackgroundCheckForm() {
                 subtitle="Add all relevant degrees. We'll verify these with the institutions directly."
               />
               <EducationSection entries={education} onChange={setEducation} />
+            </div>
+          )}
+
+          {check.include_employment && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-6">
+              <SectionHeading
+                num={sectionNum++}
+                title="Employment History"
+                subtitle="List your previous employers. We'll contact them to verify your tenure and role."
+              />
+              <EmploymentSection entries={employment} onChange={setEmployment} />
             </div>
           )}
 

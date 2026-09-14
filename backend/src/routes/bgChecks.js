@@ -26,10 +26,10 @@ function computedStatus(row) {
 
 // POST /api/employer/bg-checks — initiate a background check
 employerRouter.post('/bg-checks', auth, requireEmployer, async (req, res) => {
-  const { candidateName, candidateEmail, targetRole, includeReference, includeEducation, includeCriminal, deadlineDays } = req.body;
+  const { candidateName, candidateEmail, targetRole, includeReference, includeEducation, includeCriminal, includeEmployment, deadlineDays } = req.body;
 
   if (!candidateName || !candidateEmail) return res.status(400).json({ error: 'Candidate name and email are required' });
-  if (!includeReference && !includeEducation && !includeCriminal) {
+  if (!includeReference && !includeEducation && !includeCriminal && !includeEmployment) {
     return res.status(400).json({ error: 'Select at least one check type' });
   }
 
@@ -38,12 +38,12 @@ employerRouter.post('/bg-checks', auth, requireEmployer, async (req, res) => {
   const result = await db.query(
     `INSERT INTO background_checks
        (employer_id, candidate_name, candidate_email, target_role,
-        include_reference, include_education, include_criminal,
+        include_reference, include_education, include_criminal, include_employment,
         deadline_days, expires_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW() + ($8::int * INTERVAL '1 day'))
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW() + ($9::int * INTERVAL '1 day'))
      RETURNING *`,
     [req.user.id, candidateName, candidateEmail, targetRole || null,
-     !!includeReference, !!includeEducation, !!includeCriminal, days]
+     !!includeReference, !!includeEducation, !!includeCriminal, !!includeEmployment, days]
   );
 
   const check = result.rows[0];
@@ -53,7 +53,7 @@ employerRouter.post('/bg-checks', auth, requireEmployer, async (req, res) => {
     { name: candidateName, email: candidateEmail, role: targetRole },
     employer.rows[0],
     check.token,
-    { reference: !!includeReference, education: !!includeEducation, criminal: !!includeCriminal },
+    { reference: !!includeReference, education: !!includeEducation, criminal: !!includeCriminal, employment: !!includeEmployment },
     days
   ).catch(err => console.error('[bg check invite failed]', err.message));
 
@@ -93,10 +93,11 @@ employerRouter.get('/bg-checks/:id', auth, requireEmployer, async (req, res) => 
 
   const check = { ...checkResult.rows[0], status: computedStatus(checkResult.rows[0]) };
 
-  const [education, criminal, referralReq] = await Promise.all([
-    db.query('SELECT * FROM bg_education_entries WHERE check_id = $1 ORDER BY graduation_year DESC NULLS LAST', [check.id]),
-    db.query('SELECT * FROM bg_criminal_data WHERE check_id = $1', [check.id]),
-    db.query('SELECT * FROM referral_requests WHERE bg_check_id = $1', [check.id]),
+  const [education, employment, criminal, referralReq] = await Promise.all([
+    db.query('SELECT * FROM bg_education_entries  WHERE check_id = $1 ORDER BY graduation_year DESC NULLS LAST', [check.id]),
+    db.query('SELECT * FROM bg_employment_entries WHERE check_id = $1 ORDER BY start_year DESC NULLS LAST, start_month DESC NULLS LAST', [check.id]),
+    db.query('SELECT * FROM bg_criminal_data      WHERE check_id = $1', [check.id]),
+    db.query('SELECT * FROM referral_requests     WHERE bg_check_id = $1', [check.id]),
   ]);
 
   let referrers = { rows: [] };
@@ -110,6 +111,7 @@ employerRouter.get('/bg-checks/:id', auth, requireEmployer, async (req, res) => 
   res.json({
     check,
     education: education.rows,
+    employment: employment.rows,
     criminal: criminal.rows[0] || null,
     referrers: referrers.rows,
   });
@@ -117,7 +119,7 @@ employerRouter.get('/bg-checks/:id', auth, requireEmployer, async (req, res) => 
 
 // PATCH /api/employer/bg-checks/:id — edit candidate details + check types (invited or in_progress only)
 employerRouter.patch('/bg-checks/:id', auth, requireEmployer, async (req, res) => {
-  const { candidateName, candidateEmail, targetRole, includeReference, includeEducation, includeCriminal } = req.body;
+  const { candidateName, candidateEmail, targetRole, includeReference, includeEducation, includeCriminal, includeEmployment } = req.body;
 
   const memberIds = await getCompanyMemberIds(req.user.id);
   const existing = await db.query(
@@ -134,38 +136,40 @@ employerRouter.patch('/bg-checks/:id', auth, requireEmployer, async (req, res) =
     return res.status(409).json({ error: 'Cannot edit after candidate has submitted' });
   }
 
-  // Resolve effective check types after update (to validate at least one remains)
   const effRef  = includeReference  !== undefined ? !!includeReference  : check.include_reference;
   const effEdu  = includeEducation  !== undefined ? !!includeEducation  : check.include_education;
   const effCrim = includeCriminal   !== undefined ? !!includeCriminal   : check.include_criminal;
-  if (!effRef && !effEdu && !effCrim) {
+  const effEmp  = includeEmployment !== undefined ? !!includeEmployment : check.include_employment;
+  if (!effRef && !effEdu && !effCrim && !effEmp) {
     return res.status(400).json({ error: 'At least one check type must be selected' });
   }
 
   const emailChanged  = candidateEmail && candidateEmail !== check.candidate_email;
   const checksChanged =
-    (includeReference !== undefined && !!includeReference !== check.include_reference) ||
-    (includeEducation !== undefined && !!includeEducation !== check.include_education) ||
-    (includeCriminal  !== undefined && !!includeCriminal  !== check.include_criminal);
+    (includeReference  !== undefined && !!includeReference  !== check.include_reference)  ||
+    (includeEducation  !== undefined && !!includeEducation  !== check.include_education)  ||
+    (includeCriminal   !== undefined && !!includeCriminal   !== check.include_criminal)   ||
+    (includeEmployment !== undefined && !!includeEmployment !== check.include_employment);
 
-  // Use CASE WHEN … IS NOT NULL to allow setting booleans to false
   const result = await db.query(
     `UPDATE background_checks
-     SET candidate_name    = COALESCE($1, candidate_name),
-         candidate_email   = COALESCE($2, candidate_email),
-         target_role       = COALESCE($3, target_role),
-         include_reference = CASE WHEN $4::boolean IS NOT NULL THEN $4 ELSE include_reference END,
-         include_education = CASE WHEN $5::boolean IS NOT NULL THEN $5 ELSE include_education END,
-         include_criminal  = CASE WHEN $6::boolean IS NOT NULL THEN $6 ELSE include_criminal  END
-     WHERE id = $7
+     SET candidate_name     = COALESCE($1, candidate_name),
+         candidate_email    = COALESCE($2, candidate_email),
+         target_role        = COALESCE($3, target_role),
+         include_reference  = CASE WHEN $4::boolean IS NOT NULL THEN $4 ELSE include_reference  END,
+         include_education  = CASE WHEN $5::boolean IS NOT NULL THEN $5 ELSE include_education  END,
+         include_criminal   = CASE WHEN $6::boolean IS NOT NULL THEN $6 ELSE include_criminal   END,
+         include_employment = CASE WHEN $7::boolean IS NOT NULL THEN $7 ELSE include_employment END
+     WHERE id = $8
      RETURNING *`,
     [
-      candidateName   || null,
-      candidateEmail  || null,
-      targetRole      || null,
-      includeReference !== undefined ? !!includeReference  : null,
-      includeEducation !== undefined ? !!includeEducation  : null,
-      includeCriminal  !== undefined ? !!includeCriminal   : null,
+      candidateName    || null,
+      candidateEmail   || null,
+      targetRole       || null,
+      includeReference  !== undefined ? !!includeReference  : null,
+      includeEducation  !== undefined ? !!includeEducation  : null,
+      includeCriminal   !== undefined ? !!includeCriminal   : null,
+      includeEmployment !== undefined ? !!includeEmployment : null,
       check.id,
     ]
   );
@@ -176,7 +180,7 @@ employerRouter.patch('/bg-checks/:id', auth, requireEmployer, async (req, res) =
       { name: updated.candidate_name, email: updated.candidate_email, role: updated.target_role },
       { name: check.employer_name, email: check.employer_email, company: check.employer_company },
       updated.token,
-      { reference: updated.include_reference, education: updated.include_education, criminal: updated.include_criminal },
+      { reference: updated.include_reference, education: updated.include_education, criminal: updated.include_criminal, employment: updated.include_employment },
       updated.deadline_days
     ).catch(err => console.error('[bg check resend failed]', err.message));
   }
@@ -230,27 +234,64 @@ employerRouter.post('/bg-checks/:id/referrers', auth, requireEmployer, async (re
   res.status(201).json(referrer);
 });
 
-// PATCH /api/employer/bg-checks/:id/education/:entryId — verify/flag an education entry
-employerRouter.patch('/bg-checks/:id/education/:entryId', auth, requireEmployer, async (req, res) => {
-  const { verificationStatus, verificationNotes } = req.body;
-  const allowed = ['pending', 'verifying', 'verified', 'discrepancy'];
+// PATCH /api/employer/bg-checks/:id/employment/:entryId — update employment verification
+employerRouter.patch('/bg-checks/:id/employment/:entryId', auth, requireEmployer, async (req, res) => {
+  const { verificationStatus, contactPerson, contactRole, contactPhone, verificationNotes } = req.body;
+  const allowed = ['pending', 'verifying', 'verified', 'discrepancy', 'unable_to_reach'];
   if (!allowed.includes(verificationStatus)) return res.status(400).json({ error: 'Invalid verification status' });
 
-  // Verify the check belongs to this employer
+  const memberIds = await getCompanyMemberIds(req.user.id);
   const own = await db.query(
-    'SELECT id FROM background_checks WHERE id = $1 AND employer_id = $2',
-    [req.params.id, req.user.id]
+    `SELECT bc.id FROM background_checks bc
+     WHERE bc.id = $1 AND bc.employer_id = ANY($2::uuid[])`,
+    [req.params.id, memberIds]
+  );
+  if (!own.rows.length) return res.status(404).json({ error: 'Not found' });
+
+  const result = await db.query(
+    `UPDATE bg_employment_entries
+     SET verification_status = $1,
+         contact_person      = $2,
+         contact_role        = $3,
+         contact_phone       = $4,
+         verification_notes  = $5,
+         verified_at = CASE WHEN $8 THEN NOW() ELSE verified_at END
+     WHERE id = $6 AND check_id = $7
+     RETURNING *`,
+    [verificationStatus, contactPerson || null, contactRole || null,
+     contactPhone || null, verificationNotes || null,
+     req.params.entryId, req.params.id, verificationStatus === 'verified']
+  );
+  if (!result.rows.length) return res.status(404).json({ error: 'Entry not found' });
+
+  res.json(result.rows[0]);
+});
+
+// PATCH /api/employer/bg-checks/:id/education/:entryId — verify/flag an education entry
+employerRouter.patch('/bg-checks/:id/education/:entryId', auth, requireEmployer, async (req, res) => {
+  const { verificationStatus, contactPerson, contactRole, contactPhone, verificationNotes } = req.body;
+  const allowed = ['pending', 'verifying', 'verified', 'discrepancy', 'unable_to_reach'];
+  if (!allowed.includes(verificationStatus)) return res.status(400).json({ error: 'Invalid verification status' });
+
+  const memberIds = await getCompanyMemberIds(req.user.id);
+  const own = await db.query(
+    'SELECT id FROM background_checks WHERE id = $1 AND employer_id = ANY($2::uuid[])',
+    [req.params.id, memberIds]
   );
   if (!own.rows.length) return res.status(404).json({ error: 'Not found' });
 
   const result = await db.query(
     `UPDATE bg_education_entries
      SET verification_status = $1,
-         verification_notes  = $2,
-         verified_at = CASE WHEN $1 = 'verified' THEN NOW() ELSE verified_at END
-     WHERE id = $3 AND check_id = $4
+         contact_person      = $2,
+         contact_role        = $3,
+         contact_phone       = $4,
+         verification_notes  = $5,
+         verified_at = CASE WHEN $8 THEN NOW() ELSE verified_at END
+     WHERE id = $6 AND check_id = $7
      RETURNING *`,
-    [verificationStatus, verificationNotes || null, req.params.entryId, req.params.id]
+    [verificationStatus, contactPerson || null, contactRole || null, contactPhone || null,
+     verificationNotes || null, req.params.entryId, req.params.id, verificationStatus === 'verified']
   );
   if (!result.rows.length) return res.status(404).json({ error: 'Entry not found' });
 
@@ -263,7 +304,7 @@ employerRouter.patch('/bg-checks/:id/education/:entryId', auth, requireEmployer,
 publicRouter.get('/:token', async (req, res) => {
   const result = await db.query(
     `SELECT bc.candidate_name, bc.candidate_email, bc.target_role,
-            bc.include_reference, bc.include_education, bc.include_criminal,
+            bc.include_reference, bc.include_education, bc.include_criminal, bc.include_employment,
             bc.status, bc.expires_at, bc.deadline_days,
             u.name AS employer_name, u.company AS employer_company
      FROM background_checks bc
@@ -293,7 +334,7 @@ publicRouter.get('/:token', async (req, res) => {
 
 // POST /api/bg/:token/submit — candidate submits all info
 publicRouter.post('/:token/submit', async (req, res) => {
-  const { references = [], education = [], criminal = null } = req.body;
+  const { references = [], education = [], employment = [], criminal = null } = req.body;
 
   const checkResult = await db.query(
     `SELECT bc.*, u.name AS employer_name, u.email AS employer_email,
@@ -322,6 +363,9 @@ publicRouter.post('/:token/submit', async (req, res) => {
   if (check.include_criminal && (!criminal || !criminal.consentGiven)) {
     return res.status(400).json({ error: 'Criminal check consent is required' });
   }
+  if (check.include_employment && employment.length === 0) {
+    return res.status(400).json({ error: 'Please add at least one employment entry' });
+  }
 
   const client = await db.connect();
   try {
@@ -341,6 +385,22 @@ publicRouter.post('/:token/submit', async (req, res) => {
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [check.id, e.institution, e.degreeType, e.fieldOfStudy || null,
          e.startYear || null, e.graduationYear || null, e.gpa || null]
+      );
+    }
+
+    // Employment entries
+    for (const e of employment) {
+      await client.query(
+        `INSERT INTO bg_employment_entries
+           (check_id, employer_name, job_title, start_year, start_month,
+            end_year, end_month, is_current, supervisor_name, supervisor_contact, reason_for_leaving)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [check.id, e.employerName, e.jobTitle,
+         e.startYear || null, e.startMonth || null,
+         e.isCurrent ? null : (e.endYear || null),
+         e.isCurrent ? null : (e.endMonth || null),
+         !!e.isCurrent,
+         e.supervisorName || null, e.supervisorContact || null, e.reasonForLeaving || null]
       );
     }
 
