@@ -84,10 +84,11 @@ employerRouter.get('/bg-checks', auth, requireEmployer, async (req, res) => {
 
 // GET /api/employer/bg-checks/:id — detail view
 employerRouter.get('/bg-checks/:id', auth, requireEmployer, async (req, res) => {
+  const memberIds = await getCompanyMemberIds(req.user.id);
   const checkResult = await db.query(
     `SELECT bc.* FROM background_checks bc
-     WHERE bc.id = $1 AND bc.employer_id = $2`,
-    [req.params.id, req.user.id]
+     WHERE bc.id = $1 AND bc.employer_id = ANY($2::uuid[])`,
+    [req.params.id, memberIds]
   );
   if (!checkResult.rows.length) return res.status(404).json({ error: 'Not found' });
 
