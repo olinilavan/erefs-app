@@ -14,6 +14,8 @@ export default function AdminDashboard() {
   const [form, setForm] = useState({ candidateName: '', candidateEmail: '', targetRole: '', referrers: [{ name: '', email: '' }] });
   const [search, setSearch] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteSummary, setDeleteSummary] = useState(null);
+  const [deleteSummaryLoading, setDeleteSummaryLoading] = useState(false);
   const [flashRequests, setFlashRequests] = useState([]);
 
   function loadFlashRequests() {
@@ -63,13 +65,34 @@ export default function AdminDashboard() {
     if (selected?.id === id) setSelected(s => ({ ...s, is_active: true }));
   }
 
-  async function confirmDelete() {
-    await api.delete(`/api/admin/employers/${deleteTarget}`);
+  async function openDeleteModal(id) {
+    setDeleteTarget(id);
+    setDeleteSummary(null);
+    setDeleteSummaryLoading(true);
+    try {
+      const r = await api.get(`/api/admin/employers/${id}/data-summary`);
+      setDeleteSummary(r.data);
+    } finally {
+      setDeleteSummaryLoading(false);
+    }
+  }
+
+  function closeDeleteModal() {
     setDeleteTarget(null);
-    setSelected(null);
-    setPipeline([]);
-    const res = await api.get('/api/admin/employers');
-    setEmployers(res.data);
+    setDeleteSummary(null);
+  }
+
+  async function confirmDelete() {
+    try {
+      await api.delete(`/api/admin/employers/${deleteTarget}`);
+      closeDeleteModal();
+      setSelected(null);
+      setPipeline([]);
+      const res = await api.get('/api/admin/employers');
+      setEmployers(res.data);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Delete failed — please try again.');
+    }
   }
 
   async function handleSubmit(e) {
@@ -97,18 +120,47 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-gray-50">
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 shadow-xl max-w-sm w-full mx-4">
-            <p className="text-gray-800 font-semibold mb-1">Delete employer account?</p>
-            <p className="text-gray-500 text-sm mb-6">
-              This permanently deletes the employer account and all associated candidates, referrers, responses and reports. This cannot be undone.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setDeleteTarget(null)}
+          <div className="bg-white rounded-2xl p-6 shadow-xl max-w-md w-full mx-4">
+            <p className="text-gray-800 font-semibold text-base mb-1">Permanently delete this account?</p>
+
+            {deleteSummaryLoading && (
+              <p className="text-sm text-gray-400 my-4">Checking records…</p>
+            )}
+
+            {!deleteSummaryLoading && deleteSummary && (() => {
+              const hasData = deleteSummary.jobs > 0 || deleteSummary.bgChecks > 0 ||
+                deleteSummary.workforce > 0 || deleteSummary.candidates > 0 ||
+                deleteSummary.vendorSubmissions > 0 || deleteSummary.vendorLinks > 0;
+
+              return hasData ? (
+                <div className="my-4">
+                  <p className="text-sm text-red-700 font-medium mb-2">
+                    ⚠️ This account has existing records. All of the following will be permanently wiped:
+                  </p>
+                  <ul className="text-sm text-gray-700 space-y-1 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                    {deleteSummary.jobs > 0            && <li>📋 <strong>{deleteSummary.jobs}</strong> job posting{deleteSummary.jobs !== 1 ? 's' : ''} (and all applicants)</li>}
+                    {deleteSummary.bgChecks > 0        && <li>🔍 <strong>{deleteSummary.bgChecks}</strong> background check{deleteSummary.bgChecks !== 1 ? 's' : ''} (and all entries)</li>}
+                    {deleteSummary.workforce > 0       && <li>👤 <strong>{deleteSummary.workforce}</strong> workforce resource{deleteSummary.workforce !== 1 ? 's' : ''} (and placements)</li>}
+                    {deleteSummary.candidates > 0      && <li>📝 <strong>{deleteSummary.candidates}</strong> reference request{deleteSummary.candidates !== 1 ? 's' : ''} (and all referrer responses)</li>}
+                    {deleteSummary.vendorSubmissions > 0 && <li>📤 <strong>{deleteSummary.vendorSubmissions}</strong> vendor candidate submission{deleteSummary.vendorSubmissions !== 1 ? 's' : ''}</li>}
+                    {deleteSummary.vendorLinks > 0     && <li>🔗 <strong>{deleteSummary.vendorLinks}</strong> vendor network link{deleteSummary.vendorLinks !== 1 ? 's' : ''}</li>}
+                  </ul>
+                  <p className="text-xs text-gray-400 mt-2">This action cannot be undone.</p>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 my-4">
+                  No job postings, background checks, workforce records, or other data found. Safe to delete.
+                </p>
+              );
+            })()}
+
+            <div className="flex gap-3 justify-end mt-2">
+              <button onClick={closeDeleteModal}
                 className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition">
                 Cancel
               </button>
-              <button onClick={confirmDelete}
-                className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+              <button onClick={confirmDelete} disabled={deleteSummaryLoading}
+                className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition">
                 Delete permanently
               </button>
             </div>
@@ -218,7 +270,7 @@ export default function AdminDashboard() {
                           className="text-xs text-teal-600 hover:text-teal-800 font-medium transition">
                           Restore
                         </button>
-                        <button onClick={() => setDeleteTarget(emp.id)}
+                        <button onClick={() => openDeleteModal(emp.id)}
                           className="text-xs text-red-500 hover:text-red-700 font-medium transition">
                           Delete
                         </button>

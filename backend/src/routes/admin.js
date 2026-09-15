@@ -69,6 +69,27 @@ router.post('/employers/:id/referrals', auth, adminOnly, async (req, res) => {
   }
 });
 
+// GET /api/admin/employers/:id/data-summary — counts of all data that would be deleted
+router.get('/employers/:id/data-summary', auth, adminOnly, async (req, res) => {
+  const id = req.params.id;
+  const [jobs, bgChecks, workforce, candidates, vendorSubs, vendorLinks] = await Promise.all([
+    db.query('SELECT COUNT(*) FROM jobs                WHERE employer_id         = $1', [id]),
+    db.query('SELECT COUNT(*) FROM background_checks   WHERE employer_id         = $1', [id]),
+    db.query('SELECT COUNT(*) FROM workforce_resources WHERE employer_id         = $1', [id]),
+    db.query('SELECT COUNT(*) FROM referral_requests   WHERE requester_id        = $1', [id]),
+    db.query('SELECT COUNT(*) FROM vendor_submissions  WHERE vendor_employer_id  = $1', [id]),
+    db.query('SELECT COUNT(*) FROM employer_vendor_links WHERE buyer_employer_id = $1 OR vendor_employer_id = $1', [id]),
+  ]);
+  res.json({
+    jobs:             parseInt(jobs.rows[0].count),
+    bgChecks:         parseInt(bgChecks.rows[0].count),
+    workforce:        parseInt(workforce.rows[0].count),
+    candidates:       parseInt(candidates.rows[0].count),
+    vendorSubmissions:parseInt(vendorSubs.rows[0].count),
+    vendorLinks:      parseInt(vendorLinks.rows[0].count),
+  });
+});
+
 // PATCH /api/admin/employers/:id/deactivate
 router.patch('/employers/:id/deactivate', auth, adminOnly, async (req, res) => {
   const result = await db.query(
@@ -93,12 +114,39 @@ router.patch('/employers/:id/activate', auth, adminOnly, async (req, res) => {
 
 // DELETE /api/admin/employers/:id — only allowed if deactivated
 router.delete('/employers/:id', auth, adminOnly, async (req, res) => {
-  const result = await db.query(
-    `DELETE FROM users WHERE id = $1 AND role = 'employer' AND is_active = false RETURNING id`,
+  const check = await db.query(
+    `SELECT id FROM users WHERE id = $1 AND role = 'employer' AND is_active = false`,
     [req.params.id]
   );
-  if (!result.rows.length) return res.status(400).json({ error: 'Only deactivated employer accounts can be deleted' });
-  res.json({ success: true });
+  if (!check.rows.length) return res.status(400).json({ error: 'Only deactivated employer accounts can be deleted' });
+
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    const uid = req.params.id;
+    // Nullify audit columns that reference this user (set to NULL, don't delete the rows)
+    await client.query(`UPDATE background_checks   SET last_modified_by = NULL WHERE last_modified_by = $1`, [uid]);
+    await client.query(`UPDATE jobs                SET last_modified_by = NULL WHERE last_modified_by = $1`, [uid]);
+    await client.query(`UPDATE workforce_resources SET last_modified_by = NULL WHERE last_modified_by = $1`, [uid]);
+    // Remove activity log entries authored by or targeting this user
+    await client.query(`DELETE FROM activity_log WHERE actor_id = $1 OR target_user_id = $1`, [uid]);
+    // Remove vendor relationships and submissions
+    await client.query(`DELETE FROM vendor_submissions    WHERE vendor_employer_id = $1`, [uid]);
+    await client.query(`DELETE FROM employer_vendor_links WHERE buyer_employer_id  = $1 OR vendor_employer_id = $1`, [uid]);
+    // Clean up company invite references
+    await client.query(`UPDATE company_invites SET used_by = NULL WHERE used_by = $1`, [uid]);
+    await client.query(`DELETE FROM company_invites WHERE created_by = $1`, [uid]);
+    // Delete the user — CASCADE handles jobs, bg_checks, workforce_resources, referral_requests, etc.
+    await client.query(`DELETE FROM users WHERE id = $1`, [uid]);
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[admin delete employer]', err.message);
+    res.status(500).json({ error: 'Delete failed: ' + err.message });
+  } finally {
+    client.release();
+  }
 });
 
 const FLASH_DURATION_DAYS = 7;
