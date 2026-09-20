@@ -77,6 +77,7 @@ export default function Settings() {
       availability: form.availability,
       default_job_is_public: form.default_job_is_public,
       bench_report_enabled: form.bench_report_enabled,
+      vendor_job_alerts: form.vendor_job_alerts,
     });
     setSaving(false);
     setSaved(true);
@@ -280,6 +281,13 @@ export default function Settings() {
                 onChange={v => setForm({ ...form, default_job_is_public: v })}
                 label="New jobs default to Open to Public"
                 description="When off, new job postings default to Vendor Only instead. You can still change this per posting."
+              />
+
+              <Toggle
+                enabled={form.vendor_job_alerts !== false}
+                onChange={v => setForm({ ...form, vendor_job_alerts: v })}
+                label="Receive job alerts from approved buyers"
+                description="Get an email when a company you're an approved vendor for posts a new Vendor Only job."
               />
 
               <Link to="/employer/vendor-network" className="text-sm text-teal-600 hover:underline font-medium inline-block">

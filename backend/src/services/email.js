@@ -476,6 +476,37 @@ async function sendVendorSubmissionNotification(buyer, vendor, job, candidateNam
   else console.log('[vendor submission email sent]', data?.id, '→', buyer.email);
 }
 
+async function sendVendorJobAlert(vendor, buyer, job) {
+  console.log(`\n[DEV] Vendor job alert: "${job.title}" (${buyer.company || buyer.name}) → ${vendor.email}\n`);
+  if (isDev) return;
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: vendor.email,
+    subject: `New vendor-only job: ${job.title} at ${buyer.company || buyer.name}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #0f766e;">New job alert from ${buyer.company || buyer.name}</h2>
+        <p><strong>${job.title}</strong>${job.location ? ` · ${job.location}` : ''}${job.work_requirement ? ` · ${job.work_requirement}` : ''}</p>
+        ${job.description ? `<p style="color: #444; margin: 12px 0;">${job.description.slice(0, 300)}${job.description.length > 300 ? '…' : ''}</p>` : ''}
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${BASE_URL}/employer/vendor-jobs" style="background: #0f766e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+            View &amp; Submit Candidates
+          </a>
+        </p>
+        <p style="font-size: 12px; color: #999; text-align: center;">
+          You're receiving this because you're an approved vendor for ${buyer.company || buyer.name}.
+          To stop receiving job alerts, update your preferences in
+          <a href="${BASE_URL}/settings" style="color: #0f766e;">Settings</a>.
+        </p>
+      </div>
+    `,
+  });
+
+  if (error) console.error('[vendor job alert email failed]', error);
+  else console.log('[vendor job alert email sent]', data?.id, '→', vendor.email);
+}
+
 async function sendBgCheckInvite(candidate, employer, token, checks, deadlineDays) {
   const checkList = [
     checks.reference && 'Reference Check',
@@ -655,4 +686,4 @@ async function sendBenchReport(employer, resources, days) {
   else console.log('[bench report email sent]', data?.id, '→', employer.email);
 }
 
-module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendCandidateProfileInvite, sendEmployerContactRequest, sendNewApplicantNotification, sendAdminReminderReport, sendVendorLinkRequest, sendVendorLinkApproved, sendVendorLinkDeclined, sendVendorLinkRevoked, sendVendorSubmissionNotification, sendBgCheckInvite, sendBgCheckSubmitted, sendBgCheckDeclined, sendBenchReport };
+module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendCandidateProfileInvite, sendEmployerContactRequest, sendNewApplicantNotification, sendAdminReminderReport, sendVendorLinkRequest, sendVendorLinkApproved, sendVendorLinkDeclined, sendVendorLinkRevoked, sendVendorSubmissionNotification, sendVendorJobAlert, sendBgCheckInvite, sendBgCheckSubmitted, sendBgCheckDeclined, sendBenchReport };

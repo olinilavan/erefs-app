@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const db = require('../db');
 const auth = require('../middleware/auth');
-const { sendEmployerContactRequest, sendVendorLinkRequest, sendVendorLinkApproved, sendVendorLinkDeclined, sendVendorLinkRevoked, sendVendorSubmissionNotification } = require('../services/email');
+const { sendEmployerContactRequest, sendVendorLinkRequest, sendVendorLinkApproved, sendVendorLinkDeclined, sendVendorLinkRevoked, sendVendorSubmissionNotification, sendVendorJobAlert } = require('../services/email');
 const { matchCandidatesToJob } = require('../services/matching');
 const { parseResumeFile } = require('../services/resumeParser');
 
@@ -110,7 +110,25 @@ router.post('/jobs', auth, async (req, res) => {
      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
     [req.user.id, title, description || null, location || null, workRequirement || null, !!isPublic, expiresAt || null]
   );
-  res.json(result.rows[0]);
+  const job = result.rows[0];
+
+  // Alert approved vendors when a vendor-only job is posted
+  if (!job.is_public) {
+    db.query(
+      `SELECT u.id, u.name, u.email, u.company
+       FROM employer_vendor_links l
+       JOIN users u ON u.id = l.vendor_employer_id
+       WHERE l.buyer_employer_id = $1 AND l.status = 'approved' AND u.vendor_job_alerts = true`,
+      [req.user.id]
+    ).then(({ rows }) => {
+      const buyer = { name: req.user.name, company: req.user.company };
+      rows.forEach(vendor =>
+        sendVendorJobAlert(vendor, buyer, job).catch(err => console.error('[vendor job alert]', err.message))
+      );
+    }).catch(err => console.error('[vendor job alert query]', err.message));
+  }
+
+  res.json(job);
 });
 
 // PATCH /api/employer/jobs/:id
