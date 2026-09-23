@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Pages
@@ -91,6 +92,7 @@ export default function App() {
         {/* Admin */}
         <Route path="/admin" element={<PrivateRoute adminOnly><AdminDashboard /></PrivateRoute>} />
       </Routes>
+      <Analytics />
     </AuthProvider>
   );
 }
