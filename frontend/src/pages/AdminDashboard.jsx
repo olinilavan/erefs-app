@@ -17,6 +17,11 @@ export default function AdminDashboard() {
   const [deleteSummary, setDeleteSummary] = useState(null);
   const [deleteSummaryLoading, setDeleteSummaryLoading] = useState(false);
   const [flashRequests, setFlashRequests] = useState([]);
+  const [releaseNotes, setReleaseNotes] = useState([]);
+  const [releaseForm, setReleaseForm] = useState({ version: '', title: '', description: '' });
+  const [sendingRelease, setSendingRelease] = useState(false);
+  const [releaseError, setReleaseError] = useState('');
+  const [releaseSent, setReleaseSent] = useState(null);
 
   function loadFlashRequests() {
     api.get('/api/admin/flash-requests').then(r => setFlashRequests(r.data));
@@ -32,6 +37,7 @@ export default function AdminDashboard() {
       }
     });
     loadFlashRequests();
+    api.get('/api/admin/release-notes').then(r => setReleaseNotes(r.data));
   }, []);
 
   async function activateFlash(id) {
@@ -102,6 +108,21 @@ export default function AdminDashboard() {
     setShowNewRequest(false);
     const res = await api.get(`/api/admin/employers/${selected.id}/candidates`);
     setPipeline(res.data);
+  }
+
+  async function sendRelease(e) {
+    e.preventDefault();
+    setReleaseError(''); setSendingRelease(true);
+    try {
+      const r = await api.post('/api/admin/release-notes', releaseForm);
+      setReleaseSent(r.data);
+      setReleaseNotes(prev => [r.data, ...prev]);
+      setReleaseForm({ version: '', title: '', description: '' });
+    } catch (err) {
+      setReleaseError(err.response?.data?.error || 'Failed to send — please try again.');
+    } finally {
+      setSendingRelease(false);
+    }
   }
 
   const addReferrer = () => setForm({ ...form, referrers: [...form.referrers, { name: '', email: '' }] });
@@ -404,6 +425,75 @@ export default function AdminDashboard() {
             ) : (
               <div className="bg-white rounded-2xl border border-gray-200 flex items-center justify-center h-64 text-gray-400">
                 Select an employer to view their pipeline
+              </div>
+            )}
+          </div>
+        </div>
+        {/* Release Notes */}
+        <div className="mt-8 grid md:grid-cols-2 gap-6">
+          {/* Compose form */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-6">
+            <h2 className="font-semibold text-gray-800 mb-4">Send Release Note</h2>
+            {releaseSent && (
+              <div className="mb-4 bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-700">
+                Sent to <strong>{releaseSent.sent_to}</strong> employer{releaseSent.sent_to !== 1 ? 's' : ''}.
+                <button onClick={() => setReleaseSent(null)} className="ml-2 underline text-green-600">Dismiss</button>
+              </div>
+            )}
+            {releaseError && (
+              <p className="mb-3 text-sm text-red-500">{releaseError}</p>
+            )}
+            <form onSubmit={sendRelease} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Version *</label>
+                  <input required value={releaseForm.version}
+                    onChange={e => setReleaseForm(f => ({ ...f, version: e.target.value }))}
+                    placeholder="e.g. v1.5.0"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Title *</label>
+                  <input required value={releaseForm.title}
+                    onChange={e => setReleaseForm(f => ({ ...f, title: e.target.value }))}
+                    placeholder="e.g. Employment Verification"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Description *</label>
+                <textarea required rows={5} value={releaseForm.description}
+                  onChange={e => setReleaseForm(f => ({ ...f, description: e.target.value }))}
+                  placeholder={"• Employment verification check added to background checks\n• Vendors now receive job alerts for vendor-only postings\n• Bug fixes and performance improvements"}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+              </div>
+              <button type="submit" disabled={sendingRelease}
+                className="w-full bg-teal-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50 transition">
+                {sendingRelease ? 'Sending…' : 'Send to All Employers'}
+              </button>
+            </form>
+          </div>
+
+          {/* History */}
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 text-sm font-semibold text-gray-700">
+              Release History
+            </div>
+            {releaseNotes.length === 0 ? (
+              <div className="px-6 py-10 text-center text-gray-400 text-sm">No releases sent yet</div>
+            ) : (
+              <div className="divide-y divide-gray-50 max-h-[420px] overflow-y-auto">
+                {releaseNotes.map(n => (
+                  <div key={n.id} className="px-6 py-4">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">{n.version}</span>
+                      <span className="text-xs text-gray-400">{new Date(n.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <p className="text-sm font-medium text-gray-800 mt-1">{n.title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 whitespace-pre-line line-clamp-2">{n.description}</p>
+                    <p className="text-xs text-gray-400 mt-1">Sent to {n.sent_to} employer{n.sent_to !== 1 ? 's' : ''}</p>
+                  </div>
+                ))}
               </div>
             )}
           </div>

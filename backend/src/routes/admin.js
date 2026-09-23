@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { sendReleaseNote } = require('../services/email');
 
 const router = express.Router();
 
@@ -197,6 +198,42 @@ router.get('/stats', auth, adminOnly, async (req, res) => {
       (SELECT COUNT(*) FROM reports) AS total_reports
   `);
   res.json(result.rows[0]);
+});
+
+// ── Release notes ─────────────────────────────────────────────────────────────
+
+// GET /api/admin/release-notes
+router.get('/release-notes', auth, adminOnly, async (_req, res) => {
+  const result = await db.query(
+    'SELECT * FROM release_notes ORDER BY created_at DESC'
+  );
+  res.json(result.rows);
+});
+
+// POST /api/admin/release-notes — create + email all active employers
+router.post('/release-notes', auth, adminOnly, async (req, res) => {
+  const { version, title, description } = req.body;
+  if (!version || !title || !description)
+    return res.status(400).json({ error: 'Version, title and description are required' });
+
+  const noteResult = await db.query(
+    `INSERT INTO release_notes (version, title, description, created_by)
+     VALUES ($1, $2, $3, $4) RETURNING *`,
+    [version, title, description, req.user.id]
+  );
+  const note = noteResult.rows[0];
+
+  const employers = await db.query(
+    `SELECT email, name, company FROM users WHERE role = 'employer' AND is_active = true`
+  );
+
+  employers.rows.forEach(emp =>
+    sendReleaseNote(emp, note).catch(err => console.error('[release note email]', err.message))
+  );
+
+  await db.query('UPDATE release_notes SET sent_to = $1 WHERE id = $2', [employers.rows.length, note.id]);
+
+  res.status(201).json({ ...note, sent_to: employers.rows.length });
 });
 
 module.exports = router;

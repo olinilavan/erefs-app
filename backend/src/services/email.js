@@ -476,6 +476,35 @@ async function sendVendorSubmissionNotification(buyer, vendor, job, candidateNam
   else console.log('[vendor submission email sent]', data?.id, '→', buyer.email);
 }
 
+async function sendReleaseNote(employer, note) {
+  console.log(`\n[DEV] Release note "${note.version} — ${note.title}" → ${employer.email}\n`);
+  if (isDev) return;
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: employer.email,
+    subject: `What's new in VouchMetrics — ${note.version}: ${note.title}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <p style="font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Release Notes · ${note.version}</p>
+        <h2 style="color: #0f766e; margin-top: 0;">${note.title}</h2>
+        <div style="color: #444; font-size: 15px; line-height: 1.6; white-space: pre-line;">${note.description}</div>
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${BASE_URL}/employer/dashboard" style="background: #0f766e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+            Go to Dashboard
+          </a>
+        </p>
+        <p style="font-size: 12px; color: #999; text-align: center;">
+          You're receiving this as a VouchMetrics employer account holder.
+        </p>
+      </div>
+    `,
+  });
+
+  if (error) console.error('[release note email failed]', error);
+  else console.log('[release note email sent]', data?.id, '→', employer.email);
+}
+
 async function sendVendorJobAlert(vendor, buyer, job) {
   console.log(`\n[DEV] Vendor job alert: "${job.title}" (${buyer.company || buyer.name}) → ${vendor.email}\n`);
   if (isDev) return;
@@ -686,4 +715,4 @@ async function sendBenchReport(employer, resources, days) {
   else console.log('[bench report email sent]', data?.id, '→', employer.email);
 }
 
-module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendCandidateProfileInvite, sendEmployerContactRequest, sendNewApplicantNotification, sendAdminReminderReport, sendVendorLinkRequest, sendVendorLinkApproved, sendVendorLinkDeclined, sendVendorLinkRevoked, sendVendorSubmissionNotification, sendVendorJobAlert, sendBgCheckInvite, sendBgCheckSubmitted, sendBgCheckDeclined, sendBenchReport };
+module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendCandidateProfileInvite, sendEmployerContactRequest, sendNewApplicantNotification, sendAdminReminderReport, sendVendorLinkRequest, sendVendorLinkApproved, sendVendorLinkDeclined, sendVendorLinkRevoked, sendVendorSubmissionNotification, sendVendorJobAlert, sendReleaseNote, sendBgCheckInvite, sendBgCheckSubmitted, sendBgCheckDeclined, sendBenchReport };
