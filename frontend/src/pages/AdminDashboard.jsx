@@ -22,6 +22,9 @@ export default function AdminDashboard() {
   const [sendingRelease, setSendingRelease] = useState(false);
   const [releaseError, setReleaseError] = useState('');
   const [releaseSent, setReleaseSent] = useState(null);
+  const [enquiries, setEnquiries] = useState([]);
+  const [enquiryFilter, setEnquiryFilter] = useState('all');
+  const [patchingEnquiry, setPatchingEnquiry] = useState(null);
 
   function loadFlashRequests() {
     api.get('/api/admin/flash-requests').then(r => setFlashRequests(r.data));
@@ -38,6 +41,7 @@ export default function AdminDashboard() {
     });
     loadFlashRequests();
     api.get('/api/admin/release-notes').then(r => setReleaseNotes(r.data));
+    api.get('/api/demo/enquiries').then(r => setEnquiries(r.data));
   }, []);
 
   async function activateFlash(id) {
@@ -108,6 +112,16 @@ export default function AdminDashboard() {
     setShowNewRequest(false);
     const res = await api.get(`/api/admin/employers/${selected.id}/candidates`);
     setPipeline(res.data);
+  }
+
+  async function patchEnquiry(id, patch) {
+    setPatchingEnquiry(id);
+    try {
+      const r = await api.patch(`/api/demo/enquiries/${id}`, patch);
+      setEnquiries(prev => prev.map(e => e.id === id ? r.data : e));
+    } finally {
+      setPatchingEnquiry(null);
+    }
   }
 
   async function sendRelease(e) {
@@ -429,6 +443,85 @@ export default function AdminDashboard() {
             )}
           </div>
         </div>
+        {/* Demo Enquiries */}
+        <div className="mt-8 bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold text-gray-800">Demo &amp; Business Enquiries</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Submissions from the public /demo page</p>
+            </div>
+            <div className="flex gap-1">
+              {['all', 'new', 'contacted', 'converted', 'closed'].map(f => (
+                <button key={f} onClick={() => setEnquiryFilter(f)}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition ${enquiryFilter === f ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {enquiries.filter(e => enquiryFilter === 'all' || e.status === enquiryFilter).length === 0 ? (
+            <div className="px-6 py-10 text-center text-gray-400 text-sm">No enquiries yet</div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {enquiries
+                .filter(e => enquiryFilter === 'all' || e.status === enquiryFilter)
+                .map(enq => (
+                  <div key={enq.id} className="px-6 py-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm text-gray-800">{enq.name}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            enq.enquiry_type === 'demo' ? 'bg-indigo-100 text-indigo-700' : 'bg-purple-100 text-purple-700'
+                          }`}>{enq.enquiry_type === 'demo' ? 'Book a Demo' : 'Business Enquiry'}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            enq.status === 'new' ? 'bg-yellow-100 text-yellow-700'
+                            : enq.status === 'contacted' ? 'bg-blue-100 text-blue-700'
+                            : enq.status === 'converted' ? 'bg-green-100 text-green-700'
+                            : 'bg-gray-100 text-gray-500'
+                          }`}>{enq.status}</span>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {enq.email}{enq.company ? ` · ${enq.company}` : ''}{enq.job_title ? ` · ${enq.job_title}` : ''}{enq.team_size ? ` · ${enq.team_size} people` : ''}
+                        </div>
+                        {enq.message && (
+                          <p className="text-xs text-gray-600 mt-1 line-clamp-2">{enq.message}</p>
+                        )}
+                        {enq.admin_notes && (
+                          <p className="text-xs text-indigo-600 mt-1">Notes: {enq.admin_notes}</p>
+                        )}
+                        <p className="text-xs text-gray-400 mt-1">{new Date(enq.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                      </div>
+                      <div className="flex flex-col gap-1.5 shrink-0">
+                        <select
+                          defaultValue={enq.status}
+                          disabled={patchingEnquiry === enq.id}
+                          onChange={e => patchEnquiry(enq.id, { status: e.target.value })}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                        >
+                          {['new', 'contacted', 'converted', 'closed'].map(s => (
+                            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          placeholder="Add note…"
+                          defaultValue={enq.admin_notes || ''}
+                          onBlur={e => {
+                            if (e.target.value !== (enq.admin_notes || ''))
+                              patchEnquiry(enq.id, { adminNotes: e.target.value });
+                          }}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 w-36 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+
         {/* Release Notes */}
         <div className="mt-8 grid md:grid-cols-2 gap-6">
           {/* Compose form */}

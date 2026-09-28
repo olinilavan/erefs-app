@@ -307,6 +307,7 @@ export default function Landing() {
         <div className="flex gap-2 md:gap-3 items-center">
           <Link to="/talent" className="hidden md:block px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium">Available Talent Pool</Link>
           <Link to="/jobs" className="hidden md:block px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium">Open Roles</Link>
+          <Link to="/demo" className="hidden md:block px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium">Book a Demo</Link>
           <Link to="/login" className="px-3 md:px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium text-sm md:text-base">Log in</Link>
           <Link to="/register" className="px-3 md:px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700 transition text-sm md:text-base">Get Started Free</Link>
         </div>
@@ -330,6 +331,10 @@ export default function Landing() {
           <Link to="/register?role=jobseeker"
             className="px-7 py-3.5 border-2 border-teal-200 text-teal-700 rounded-xl font-semibold hover:bg-teal-50 transition text-lg">
             I'm job seeking
+          </Link>
+          <Link to="/demo"
+            className="px-7 py-3.5 border-2 border-gray-200 text-gray-600 rounded-xl font-semibold hover:bg-gray-50 transition text-lg">
+            Book a demo
           </Link>
         </div>
       </section>
@@ -417,10 +422,16 @@ export default function Landing() {
         <p className="text-gray-500 mb-8 text-lg">
           From sourcing to verification to vendor collaboration — make better hires, faster.
         </p>
-        <Link to="/register"
-          className="inline-block px-8 py-4 bg-teal-600 text-white rounded-xl font-bold text-lg hover:bg-teal-700 transition shadow-sm">
-          Get started for free →
-        </Link>
+        <div className="flex gap-4 justify-center flex-wrap">
+          <Link to="/register"
+            className="inline-block px-8 py-4 bg-teal-600 text-white rounded-xl font-bold text-lg hover:bg-teal-700 transition shadow-sm">
+            Get started for free →
+          </Link>
+          <Link to="/demo"
+            className="inline-block px-8 py-4 border-2 border-gray-200 text-gray-600 rounded-xl font-bold text-lg hover:bg-gray-50 transition">
+            Book a demo
+          </Link>
+        </div>
       </section>
 
       {/* Footer */}
@@ -429,6 +440,7 @@ export default function Landing() {
           <Logo height={28} />
           <div className="flex gap-4">
             <span>© {new Date().getFullYear()} VouchMetrics</span>
+            <Link to="/demo" className="hover:text-gray-600 transition">Book a Demo</Link>
             <Link to="/terms" className="hover:text-gray-600 transition">Terms & Conditions</Link>
           </div>
         </div>

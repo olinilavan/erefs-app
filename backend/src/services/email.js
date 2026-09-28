@@ -476,6 +476,66 @@ async function sendVendorSubmissionNotification(buyer, vendor, job, candidateNam
   else console.log('[vendor submission email sent]', data?.id, '→', buyer.email);
 }
 
+async function sendDemoEnquiryConfirmation(submission) {
+  const typeLabel = submission.enquiry_type === 'demo' ? 'demo request' : 'business enquiry';
+  console.log(`\n[DEV] Demo enquiry confirmation → ${submission.email}\n`);
+  if (isDev) return;
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: submission.email,
+    subject: `We've received your ${typeLabel} — VouchMetrics`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #0f766e;">Thanks, ${submission.name.split(' ')[0]}!</h2>
+        <p>We've received your ${typeLabel} and will be in touch within 1 business day.</p>
+        ${submission.message ? `<p style="color:#555; background:#f8fafc; padding:12px 16px; border-radius:8px; font-size:14px;">"${submission.message}"</p>` : ''}
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${BASE_URL}" style="background: #0f766e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+            Learn more about VouchMetrics
+          </a>
+        </p>
+      </div>
+    `,
+  });
+  if (error) console.error('[demo enquiry confirmation failed]', error);
+  else console.log('[demo enquiry confirmation sent]', data?.id, '→', submission.email);
+}
+
+async function sendDemoEnquiryAlert(submission) {
+  const adminEmails = (process.env.ADMIN_REPORT_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
+  if (!adminEmails.length) return;
+  const typeLabel = submission.enquiry_type === 'demo' ? '🗓 Demo Request' : '💼 Business Enquiry';
+  console.log(`\n[DEV] Demo enquiry alert: ${typeLabel} from ${submission.email}\n`);
+  if (isDev) return;
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: adminEmails,
+    subject: `${typeLabel} — ${submission.name} at ${submission.company || 'Unknown Company'}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a2e;">${typeLabel}</h2>
+        <table style="width:100%; border-collapse:collapse; font-size:14px;">
+          <tr><td style="padding:6px 0; color:#888; width:110px">Name</td><td style="padding:6px 0"><strong>${submission.name}</strong></td></tr>
+          <tr><td style="padding:6px 0; color:#888">Email</td><td style="padding:6px 0"><a href="mailto:${submission.email}">${submission.email}</a></td></tr>
+          ${submission.company   ? `<tr><td style="padding:6px 0; color:#888">Company</td><td style="padding:6px 0">${submission.company}</td></tr>` : ''}
+          ${submission.job_title ? `<tr><td style="padding:6px 0; color:#888">Role</td><td style="padding:6px 0">${submission.job_title}</td></tr>` : ''}
+          ${submission.team_size ? `<tr><td style="padding:6px 0; color:#888">Team size</td><td style="padding:6px 0">${submission.team_size}</td></tr>` : ''}
+        </table>
+        ${submission.message ? `<p style="margin-top:16px; color:#555; background:#f8fafc; padding:12px 16px; border-radius:8px;">"${submission.message}"</p>` : ''}
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${BASE_URL}/admin" style="background: #0f766e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+            View in Admin Dashboard
+          </a>
+        </p>
+      </div>
+    `,
+  });
+  if (error) console.error('[demo enquiry alert failed]', error);
+  else console.log('[demo enquiry alert sent]', data?.id);
+}
+
 async function sendReleaseNote(employer, note) {
   console.log(`\n[DEV] Release note "${note.version} — ${note.title}" → ${employer.email}\n`);
   if (isDev) return;
@@ -715,4 +775,4 @@ async function sendBenchReport(employer, resources, days) {
   else console.log('[bench report email sent]', data?.id, '→', employer.email);
 }
 
-module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendCandidateProfileInvite, sendEmployerContactRequest, sendNewApplicantNotification, sendAdminReminderReport, sendVendorLinkRequest, sendVendorLinkApproved, sendVendorLinkDeclined, sendVendorLinkRevoked, sendVendorSubmissionNotification, sendVendorJobAlert, sendReleaseNote, sendBgCheckInvite, sendBgCheckSubmitted, sendBgCheckDeclined, sendBenchReport };
+module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendCandidateProfileInvite, sendEmployerContactRequest, sendNewApplicantNotification, sendAdminReminderReport, sendVendorLinkRequest, sendVendorLinkApproved, sendVendorLinkDeclined, sendVendorLinkRevoked, sendVendorSubmissionNotification, sendVendorJobAlert, sendDemoEnquiryConfirmation, sendDemoEnquiryAlert, sendReleaseNote, sendBgCheckInvite, sendBgCheckSubmitted, sendBgCheckDeclined, sendBenchReport };

@@ -36,6 +36,7 @@ import VerifyEmail from './pages/VerifyEmail';
 import GoogleRoleSelect from './pages/GoogleRoleSelect';
 import LinkedInSuccess from './pages/LinkedInSuccess';
 import LinkedInRoleSelect from './pages/LinkedInRoleSelect';
+import DemoRequest from './pages/DemoRequest';
 
 function PrivateRoute({ children, role, adminOnly }) {
   const { user } = useAuth();
@@ -63,6 +64,7 @@ export default function App() {
         <Route path="/talent" element={<PublicTalentDirectory />} />
         <Route path="/jobs" element={<OpenRoles />} />
         <Route path="/terms" element={<Terms />} />
+        <Route path="/demo" element={<DemoRequest />} />
         <Route path="/verify-email/:token" element={<VerifyEmail />} />
         <Route path="/auth/google/role"     element={<GoogleRoleSelect />} />
         <Route path="/auth/linkedin/success" element={<LinkedInSuccess />} />
