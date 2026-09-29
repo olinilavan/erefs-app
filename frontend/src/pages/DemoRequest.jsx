@@ -22,7 +22,7 @@ export default function DemoRequest() {
     setError('');
     setSubmitting(true);
     try {
-      await api.post('/demo', { enquiryType: type, ...form });
+      await api.post('/api/demo', { enquiryType: type, ...form });
       setSubmitted(true);
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong. Please try again.');
