@@ -25,6 +25,9 @@ export default function AdminDashboard() {
   const [enquiries, setEnquiries] = useState([]);
   const [enquiryFilter, setEnquiryFilter] = useState('all');
   const [patchingEnquiry, setPatchingEnquiry] = useState(null);
+  const [chatSessions, setChatSessions] = useState([]);
+  const [openChatSession, setOpenChatSession] = useState(null);
+  const [chatThread, setChatThread] = useState(null);
 
   function loadFlashRequests() {
     api.get('/api/admin/flash-requests').then(r => setFlashRequests(r.data));
@@ -42,6 +45,7 @@ export default function AdminDashboard() {
     loadFlashRequests();
     api.get('/api/admin/release-notes').then(r => setReleaseNotes(r.data));
     api.get('/api/demo/enquiries').then(r => setEnquiries(r.data));
+    api.get('/api/chat/sessions').then(r => setChatSessions(r.data));
   }, []);
 
   async function activateFlash(id) {
@@ -112,6 +116,14 @@ export default function AdminDashboard() {
     setShowNewRequest(false);
     const res = await api.get(`/api/admin/employers/${selected.id}/candidates`);
     setPipeline(res.data);
+  }
+
+  async function openChat(id) {
+    if (openChatSession === id) { setOpenChatSession(null); setChatThread(null); return; }
+    setOpenChatSession(id);
+    setChatThread(null);
+    const r = await api.get(`/api/chat/sessions/${id}`);
+    setChatThread(r.data);
   }
 
   async function patchEnquiry(id, patch) {
@@ -591,6 +603,65 @@ export default function AdminDashboard() {
             )}
           </div>
         </div>
+        {/* Chat Sessions */}
+        <div className="mt-8 bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h2 className="font-semibold text-gray-800">Visitor Chat Sessions</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Conversations from the public chatbot — {chatSessions.length} total</p>
+          </div>
+
+          {chatSessions.length === 0 ? (
+            <div className="px-6 py-10 text-center text-gray-400 text-sm">No chat sessions yet</div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {chatSessions.map(s => (
+                <div key={s.id}>
+                  <button onClick={() => openChat(s.id)}
+                    className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition text-left">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-mono text-gray-400">{s.session_token.slice(0, 8)}…</span>
+                        <span className="text-xs text-gray-500">{s.message_count} message{s.message_count !== 1 ? 's' : ''}</span>
+                        {s.page_url && <span className="text-xs text-gray-400">{s.page_url}</span>}
+                      </div>
+                      {s.last_user_message && (
+                        <p className="text-sm text-gray-600 mt-0.5 truncate">{s.last_user_message}</p>
+                      )}
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Started {new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {' · '}Last active {new Date(s.last_active_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                    <span className="text-gray-400 text-xs ml-4 shrink-0">{openChatSession === s.id ? '▲' : '▼'}</span>
+                  </button>
+
+                  {openChatSession === s.id && (
+                    <div className="px-6 pb-4 bg-gray-50 border-t border-gray-100">
+                      {!chatThread ? (
+                        <p className="text-sm text-gray-400 py-4 text-center">Loading…</p>
+                      ) : (
+                        <div className="space-y-2 pt-4 max-h-80 overflow-y-auto">
+                          {chatThread.messages.map((m, i) => (
+                            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
+                                m.role === 'user'
+                                  ? 'bg-teal-600 text-white rounded-br-sm'
+                                  : 'bg-white border border-gray-200 text-gray-700 rounded-bl-sm'
+                              }`}>
+                                {m.content}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
       </main>
     </div>
   );

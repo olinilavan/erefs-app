@@ -4,6 +4,7 @@ import SAMPLE from '../sampleReportData';
 import Logo from '../components/Logo';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
+import ChatWidget from '../components/ChatWidget';
 
 const SAMPLE_JOB_MATCH = {
   candidateName: 'James Rivera',
@@ -433,6 +434,8 @@ export default function Landing() {
           </Link>
         </div>
       </section>
+
+      <ChatWidget />
 
       {/* Footer */}
       <footer className="border-t border-gray-100 py-8 px-8">

@@ -3,7 +3,7 @@ const { createGroq } = require('@ai-sdk/groq');
 const db = require('../db');
 
 const groq = createGroq({ apiKey: process.env.GROQ_API_KEY });
-const LLM_MODEL = process.env.LLM_MODEL || 'llama-3.3-70b-versatile';
+const LLM_MODEL = process.env.LLM_MODEL || 'openai/gpt-oss-120b';
 
 const QUESTIONS = [
   'How long have you known the candidate and in what capacity?',
