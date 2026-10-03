@@ -423,12 +423,26 @@ router.get('/vendors/directory', auth, async (req, res) => {
 // POST /api/employer/vendors/request — I want to become buyerEmployerId's vendor
 router.post('/vendors/request', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
-  const { buyerEmployerId } = req.body;
+  const { buyerEmployerId, specializations, states, bio, website, placementVolume } = req.body;
   if (!buyerEmployerId) return res.status(400).json({ error: 'buyerEmployerId is required' });
   if (buyerEmployerId === req.user.id) return res.status(400).json({ error: 'You cannot link to yourself' });
 
   const buyerCheck = await db.query(`SELECT id FROM users WHERE id = $1 AND role = 'employer'`, [buyerEmployerId]);
   if (!buyerCheck.rows.length) return res.status(404).json({ error: 'Employer not found' });
+
+  // Save vendor profile fields alongside the request
+  if (specializations || states || bio || website || placementVolume) {
+    await db.query(
+      `UPDATE users SET
+        vendor_specializations = COALESCE($1, vendor_specializations),
+        vendor_states          = COALESCE($2, vendor_states),
+        vendor_bio             = COALESCE($3, vendor_bio),
+        vendor_website         = COALESCE($4, vendor_website),
+        vendor_placement_volume = COALESCE($5, vendor_placement_volume)
+       WHERE id = $6`,
+      [specializations || null, states || null, bio || null, website || null, placementVolume || null, req.user.id]
+    );
+  }
 
   const result = await db.query(
     `INSERT INTO employer_vendor_links (buyer_employer_id, vendor_employer_id, status, requested_at)
@@ -442,7 +456,10 @@ router.post('/vendors/request', auth, async (req, res) => {
   if (!result.rows.length) return res.status(400).json({ error: 'A request already exists with this employer' });
 
   const buyer = await db.query(`SELECT name, email, company FROM users WHERE id = $1`, [buyerEmployerId]);
-  const vendor = await db.query(`SELECT name, email, company FROM users WHERE id = $1`, [req.user.id]);
+  const vendor = await db.query(
+    `SELECT name, email, company, vendor_specializations, vendor_states, vendor_bio, vendor_website, vendor_placement_volume
+     FROM users WHERE id = $1`, [req.user.id]
+  );
   sendVendorLinkRequest(buyer.rows[0], vendor.rows[0]).catch(err => console.error('[vendor link email]', err.message));
 
   res.json(result.rows[0]);
@@ -452,7 +469,8 @@ router.post('/vendors/request', auth, async (req, res) => {
 router.get('/vendors/incoming', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
   const result = await db.query(
-    `SELECT l.*, u.name AS vendor_name, u.company AS vendor_company, u.email AS vendor_email
+    `SELECT l.*, u.name AS vendor_name, u.company AS vendor_company, u.email AS vendor_email,
+            u.vendor_specializations, u.vendor_states, u.vendor_bio, u.vendor_website, u.vendor_placement_volume
      FROM employer_vendor_links l JOIN users u ON u.id = l.vendor_employer_id
      WHERE l.buyer_employer_id = $1 AND l.status = 'pending'
      ORDER BY l.requested_at DESC`,

@@ -78,6 +78,13 @@ export default function Settings() {
       default_job_is_public: form.default_job_is_public,
       bench_report_enabled: form.bench_report_enabled,
       vendor_job_alerts: form.vendor_job_alerts,
+      vendor_specializations: form.vendor_specializations,
+      vendor_states: form.vendor_states,
+      vendor_bio: form.vendor_bio,
+      vendor_website: form.vendor_website
+        ? /^https?:\/\//i.test(form.vendor_website) ? form.vendor_website : 'https://' + form.vendor_website
+        : null,
+      vendor_placement_volume: form.vendor_placement_volume,
     });
     setSaving(false);
     setSaved(true);
@@ -293,6 +300,83 @@ export default function Settings() {
               <Link to="/employer/vendor-network" className="text-sm text-teal-600 hover:underline font-medium inline-block">
                 Manage Vendor Network →
               </Link>
+
+              {/* Vendor profile */}
+              <div className="border-t border-gray-100 pt-5 space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-800 mb-0.5">Vendor Profile</h3>
+                  <p className="text-xs text-gray-400">Shown to buyers when you request to join their network.</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-2">Specialization areas <span className="text-gray-400">(up to 5)</span></label>
+                  <div className="flex flex-wrap gap-2">
+                    {['IT / Technology','Healthcare','Finance & Accounting','Engineering','Marketing & Creative','Sales & Business Development','Legal & Compliance','Operations & Admin','Construction & Trades','Education & Training'].map(s => {
+                      const selected = (form.vendor_specializations || []).includes(s);
+                      return (
+                        <button key={s} type="button"
+                          onClick={() => {
+                            const cur = form.vendor_specializations || [];
+                            setForm({ ...form, vendor_specializations: selected ? cur.filter(x => x !== s) : cur.length < 5 ? [...cur, s] : cur });
+                          }}
+                          className={`text-xs px-3 py-1.5 rounded-full border font-medium transition ${selected ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-600 hover:border-teal-400'}`}>
+                          {s}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-2">States you operate in</label>
+                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto border border-gray-100 rounded-lg p-2 bg-gray-50">
+                    {['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC','Nationwide'].map(s => {
+                      const selected = (form.vendor_states || []).includes(s);
+                      return (
+                        <button key={s} type="button"
+                          onClick={() => {
+                            const cur = form.vendor_states || [];
+                            setForm({ ...form, vendor_states: selected ? cur.filter(x => x !== s) : [...cur, s] });
+                          }}
+                          className={`text-xs px-2.5 py-1 rounded-full border font-medium transition ${selected ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-600 bg-white hover:border-teal-400'}`}>
+                          {s}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {(form.vendor_states || []).length > 0 && (
+                    <p className="text-xs text-teal-600 mt-1">{(form.vendor_states || []).join(', ')}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Agency introduction</label>
+                  <textarea rows={3} maxLength={400}
+                    value={form.vendor_bio || ''}
+                    onChange={e => setForm({ ...form, vendor_bio: e.target.value })}
+                    placeholder="Brief intro about your agency — what you do, who you place, and what makes you different."
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Website</label>
+                    <input type="text" value={form.vendor_website || ''}
+                      onChange={e => setForm({ ...form, vendor_website: e.target.value })}
+                      placeholder="www.youragency.com"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Placements per month</label>
+                    <select value={form.vendor_placement_volume || ''}
+                      onChange={e => setForm({ ...form, vendor_placement_volume: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white">
+                      <option value="">Select…</option>
+                      {['1–10 / month','10–50 / month','50–100 / month','100+ / month'].map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

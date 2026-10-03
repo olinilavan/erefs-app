@@ -370,6 +370,23 @@ async function sendVendorLinkRequest(buyer, vendor) {
   console.log(`\n[DEV] Vendor link request: ${vendor.company || vendor.name} → ${buyer.company || buyer.name}\n`);
   if (isDev) return;
 
+  const specs = (vendor.vendor_specializations || []).join(', ') || null;
+  const states = (vendor.vendor_states || []).join(', ') || null;
+
+  const profileRows = [
+    specs   && `<tr><td style="padding:6px 0;color:#6b7280;font-size:13px;width:160px;">Specializations</td><td style="padding:6px 0;font-size:13px;">${specs}</td></tr>`,
+    states  && `<tr><td style="padding:6px 0;color:#6b7280;font-size:13px;">Operating states</td><td style="padding:6px 0;font-size:13px;">${states}</td></tr>`,
+    vendor.vendor_placement_volume && `<tr><td style="padding:6px 0;color:#6b7280;font-size:13px;">Placements / month</td><td style="padding:6px 0;font-size:13px;">${vendor.vendor_placement_volume}</td></tr>`,
+    vendor.vendor_website && `<tr><td style="padding:6px 0;color:#6b7280;font-size:13px;">Website</td><td style="padding:6px 0;font-size:13px;"><a href="${vendor.vendor_website}" style="color:#0f766e;">${vendor.vendor_website}</a></td></tr>`,
+  ].filter(Boolean).join('');
+
+  const profileSection = (vendor.vendor_bio || profileRows) ? `
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px 20px;margin:20px 0;">
+      <p style="font-weight:600;font-size:14px;margin:0 0 10px;">Vendor profile</p>
+      ${vendor.vendor_bio ? `<p style="font-size:13px;color:#374151;margin:0 0 12px;line-height:1.6;">${vendor.vendor_bio}</p>` : ''}
+      ${profileRows ? `<table style="border-collapse:collapse;width:100%">${profileRows}</table>` : ''}
+    </div>` : '';
+
   const { data, error } = await resend.emails.send({
     from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
     to: buyer.email,
@@ -378,6 +395,7 @@ async function sendVendorLinkRequest(buyer, vendor) {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #1a1a2e;">New vendor request</h2>
         <p><strong>${vendor.company || vendor.name}</strong> (${vendor.email}) has requested to become an approved vendor on your job postings.</p>
+        ${profileSection}
         <p style="text-align: center; margin: 32px 0;">
           <a href="${BASE_URL}/employer/vendor-network" style="background: #0f766e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
             Review Request
