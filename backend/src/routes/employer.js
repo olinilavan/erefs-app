@@ -409,6 +409,7 @@ router.get('/vendors/directory', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
   const result = await db.query(
     `SELECT u.id, u.name, u.company,
+            u.vendor_specializations, u.vendor_states, u.vendor_bio, u.vendor_website, u.vendor_placement_volume,
             l.status AS link_status
      FROM users u
      LEFT JOIN employer_vendor_links l

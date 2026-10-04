@@ -238,6 +238,7 @@ export default function EmployerVendorNetwork() {
   const [profileModal, setProfileModal] = useState(null); // { buyerEmployerId, company, name }
   const [myProfile, setMyProfile] = useState(null);
   const [expandedIncoming, setExpandedIncoming] = useState({});
+  const [expandedDirectory, setExpandedDirectory] = useState({});
 
   function loadAll() {
     api.get('/api/employer/vendors/directory').then(r => setDirectory(r.data));
@@ -401,30 +402,101 @@ export default function EmployerVendorNetwork() {
         )}
 
         {tab === 'directory' && (
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 text-sm font-semibold text-gray-700">
-              Other Employers — request to become their vendor
-            </div>
-            <div className="divide-y divide-gray-50">
-              {directory.map(e => (
-                <div key={e.id} className="px-5 py-4 flex justify-between items-center">
-                  <div className="font-medium text-sm text-gray-800">{e.company || e.name}</div>
-                  {e.link_status ? (
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${LINK_STATUS_BADGE[e.link_status]}`}>{e.link_status}</span>
-                  ) : (
-                    <Tooltip text="You'll be asked to complete a short vendor profile before submitting. Once approved, their job postings will appear under Vendor Jobs.">
-                      <button onClick={() => openRequestModal(e)} disabled={requesting[e.id]}
-                        className="text-xs bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 font-medium disabled:opacity-50">
-                        Request to be their Vendor
-                      </button>
-                    </Tooltip>
-                  )}
+          <div className="space-y-4">
+
+            {/* Vendor's own profile preview */}
+            <div className={`rounded-2xl border p-5 ${
+              profileComplete ? 'bg-white border-teal-100' : 'bg-amber-50 border-amber-200'
+            }`}>
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Your vendor profile</p>
+                  <p className="text-xs text-gray-500 mt-0.5">This is what buyers see when you send a request.</p>
                 </div>
-              ))}
-              {directory.length === 0 && (
-                <div className="px-5 py-8 text-center text-gray-400 text-sm">No other employers yet</div>
+                <Link to="/settings" className="text-xs text-teal-600 hover:underline font-medium shrink-0">
+                  Edit profile →
+                </Link>
+              </div>
+
+              {profileComplete ? (
+                <div className="space-y-3">
+                  {myProfile.vendor_bio && (
+                    <p className="text-sm text-gray-700 leading-relaxed">{myProfile.vendor_bio}</p>
+                  )}
+                  {myProfile.vendor_specializations?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Specializations</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {myProfile.vendor_specializations.map(s => (
+                          <span key={s} className="text-xs bg-teal-50 text-teal-700 border border-teal-100 px-2.5 py-0.5 rounded-full">{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {myProfile.vendor_states?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Operating States</p>
+                      <p className="text-xs text-gray-600">{myProfile.vendor_states.join(', ')}</p>
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 pt-0.5">
+                    {myProfile.vendor_placement_volume && <span>📦 {myProfile.vendor_placement_volume}</span>}
+                    {myProfile.vendor_website && (
+                      <a href={myProfile.vendor_website} target="_blank" rel="noopener noreferrer"
+                        className="text-teal-600 hover:underline">🌐 {myProfile.vendor_website}</a>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-amber-700">
+                  Your profile is incomplete — buyers won't have enough context to approve your request.{' '}
+                  <Link to="/settings" className="font-semibold underline">Complete it in Settings</Link> before sending requests.
+                </p>
               )}
             </div>
+
+            {/* Employer directory */}
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+              <div className="px-5 py-3 border-b border-gray-100 text-sm font-semibold text-gray-700">
+                Other Employers — request to become their vendor
+              </div>
+              <div className="divide-y divide-gray-50">
+                {directory.map(e => {
+                  const hasProfile = e.vendor_bio || e.vendor_specializations?.length > 0;
+                  return (
+                    <div key={e.id} className="px-5 py-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="font-medium text-sm text-gray-800">{e.company || e.name}</div>
+                          {hasProfile && (
+                            <button
+                              onClick={() => setExpandedDirectory(p => ({ ...p, [e.id]: !p[e.id] }))}
+                              className="text-xs text-teal-600 hover:text-teal-800 font-medium mt-0.5">
+                              {expandedDirectory[e.id] ? 'Hide profile ▲' : 'View profile ▼'}
+                            </button>
+                          )}
+                        </div>
+                        {e.link_status ? (
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${LINK_STATUS_BADGE[e.link_status]}`}>{e.link_status}</span>
+                        ) : (
+                          <Tooltip text="You'll be asked to complete a short vendor profile before submitting. Once approved, their job postings will appear under Vendor Jobs.">
+                            <button onClick={() => openRequestModal(e)} disabled={requesting[e.id]}
+                              className="text-xs bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 font-medium disabled:opacity-50">
+                              Request to be their Vendor
+                            </button>
+                          </Tooltip>
+                        )}
+                      </div>
+                      {expandedDirectory[e.id] && <VendorProfileCard vendor={e} />}
+                    </div>
+                  );
+                })}
+                {directory.length === 0 && (
+                  <div className="px-5 py-8 text-center text-gray-400 text-sm">No other employers yet</div>
+                )}
+              </div>
+            </div>
+
           </div>
         )}
       </main>
