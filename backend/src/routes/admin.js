@@ -236,4 +236,30 @@ router.post('/release-notes', auth, adminOnly, async (req, res) => {
   res.status(201).json({ ...note, sent_to: employers.rows.length });
 });
 
+// GET /api/admin/vendor-requests — all pending vendor link requests
+router.get('/vendor-requests', auth, adminOnly, async (_req, res) => {
+  const result = await db.query(
+    `SELECT l.id, l.status, l.requested_at,
+            b.name AS buyer_name, b.company AS buyer_company, b.email AS buyer_email,
+            v.name AS vendor_name, v.company AS vendor_company, v.email AS vendor_email,
+            v.vendor_specializations, v.vendor_states, v.vendor_bio, v.vendor_website, v.vendor_placement_volume
+     FROM employer_vendor_links l
+     JOIN users b ON b.id = l.buyer_employer_id
+     JOIN users v ON v.id = l.vendor_employer_id
+     WHERE l.status = 'pending'
+     ORDER BY l.requested_at DESC`
+  );
+  res.json(result.rows);
+});
+
+// DELETE /api/admin/vendor-requests/:id — admin removes a pending request
+router.delete('/vendor-requests/:id', auth, adminOnly, async (req, res) => {
+  const result = await db.query(
+    `DELETE FROM employer_vendor_links WHERE id = $1 AND status = 'pending' RETURNING *`,
+    [req.params.id]
+  );
+  if (!result.rows.length) return res.status(404).json({ error: 'Pending request not found' });
+  res.json({ ok: true });
+});
+
 module.exports = router;

@@ -28,6 +28,7 @@ export default function AdminDashboard() {
   const [chatSessions, setChatSessions] = useState([]);
   const [openChatSession, setOpenChatSession] = useState(null);
   const [chatThread, setChatThread] = useState(null);
+  const [vendorRequests, setVendorRequests] = useState([]);
 
   function loadFlashRequests() {
     api.get('/api/admin/flash-requests').then(r => setFlashRequests(r.data));
@@ -46,6 +47,7 @@ export default function AdminDashboard() {
     api.get('/api/admin/release-notes').then(r => setReleaseNotes(r.data));
     api.get('/api/demo/enquiries').then(r => setEnquiries(r.data));
     api.get('/api/chat/sessions').then(r => setChatSessions(r.data));
+    api.get('/api/admin/vendor-requests').then(r => setVendorRequests(r.data));
   }, []);
 
   async function activateFlash(id) {
@@ -455,6 +457,59 @@ export default function AdminDashboard() {
             )}
           </div>
         </div>
+        {/* Pending Vendor Requests */}
+        {vendorRequests.length > 0 && (
+          <div className="mt-8 bg-white rounded-2xl border border-yellow-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-yellow-100 bg-yellow-50 flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold text-gray-800">Pending Vendor Requests</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{vendorRequests.length} request{vendorRequests.length !== 1 ? 's' : ''} awaiting buyer action</p>
+              </div>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {vendorRequests.map(r => (
+                <div key={r.id} className="px-6 py-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-sm text-gray-800">{r.vendor_company || r.vendor_name}</span>
+                        <span className="text-gray-400 text-xs">→</span>
+                        <span className="text-sm text-gray-600">{r.buyer_company || r.buyer_name}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium">pending</span>
+                      </div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {r.vendor_email} · Requested {new Date(r.requested_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </div>
+                      {r.vendor_bio && (
+                        <p className="text-xs text-gray-600 mt-1 line-clamp-2">{r.vendor_bio}</p>
+                      )}
+                      {(r.vendor_specializations?.length > 0) && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {r.vendor_specializations.map(s => (
+                            <span key={s} className="text-xs bg-teal-50 text-teal-700 border border-teal-100 px-2 py-0.5 rounded-full">{s}</span>
+                          ))}
+                        </div>
+                      )}
+                      {(r.vendor_states?.length > 0) && (
+                        <p className="text-xs text-gray-400 mt-1">{r.vendor_states.join(', ')}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm(`Delete the pending request from ${r.vendor_company || r.vendor_name}? This cannot be undone.`)) return;
+                        await api.delete(`/api/admin/vendor-requests/${r.id}`);
+                        setVendorRequests(prev => prev.filter(x => x.id !== r.id));
+                      }}
+                      className="shrink-0 text-xs text-red-500 hover:text-red-700 font-medium border border-red-100 hover:border-red-300 px-3 py-1.5 rounded-lg transition">
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Demo Enquiries */}
         <div className="mt-8 bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
