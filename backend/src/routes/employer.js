@@ -593,7 +593,7 @@ router.get('/vendors/jobs', auth, async (req, res) => {
             u.company, u.id AS buyer_employer_id,
             EXISTS (
               SELECT 1 FROM vendor_submissions vs
-              WHERE vs.job_id = j.id AND vs.vendor_employer_id = ANY($2::uuid[])
+              WHERE vs.job_id = j.id AND vs.vendor_employer_id = ANY($1::uuid[])
             ) AS already_submitted,
             (SELECT COUNT(*) FROM vendor_submissions vs2 WHERE vs2.job_id = j.id)::int AS submission_count
      FROM jobs j
@@ -603,11 +603,11 @@ router.get('/vendors/jobs', auth, async (req, res) => {
        AND EXISTS (
          SELECT 1 FROM employer_vendor_links l
          WHERE l.buyer_employer_id = j.employer_id
-           AND l.vendor_employer_id = ANY($2::uuid[])
+           AND l.vendor_employer_id = ANY($1::uuid[])
            AND l.status = 'approved'
        )
      ORDER BY j.created_at DESC`,
-    [req.user.id, memberIds]
+    [memberIds]
   );
   res.json(result.rows);
 });
