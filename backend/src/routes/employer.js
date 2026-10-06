@@ -457,6 +457,25 @@ router.post('/vendors/request', auth, async (req, res) => {
   const buyerCheck = await db.query(`SELECT id FROM users WHERE id = $1 AND role = 'employer'`, [buyerEmployerId]);
   if (!buyerCheck.rows.length) return res.status(404).json({ error: 'Employer not found' });
 
+  // Block if any member of the vendor's company already has an active/pending link with this buyer company
+  const memberIds = await getCompanyMemberIds(req.user.id);
+  const buyerMemberIds = await getCompanyMemberIds(buyerEmployerId);
+  const dupCheck = await db.query(
+    `SELECT id, status FROM employer_vendor_links
+     WHERE vendor_employer_id = ANY($1::uuid[])
+       AND buyer_employer_id  = ANY($2::uuid[])
+       AND status NOT IN ('declined', 'revoked')
+     LIMIT 1`,
+    [memberIds, buyerMemberIds]
+  );
+  if (dupCheck.rows.length) {
+    const existing = dupCheck.rows[0];
+    const msg = existing.status === 'approved'
+      ? 'Your company is already an approved vendor for this employer.'
+      : 'Your company already has a pending request with this employer.';
+    return res.status(400).json({ error: msg });
+  }
+
   // Save vendor profile fields alongside the request
   if (specializations || states || bio || website || placementVolume) {
     await db.query(
