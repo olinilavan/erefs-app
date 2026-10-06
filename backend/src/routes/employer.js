@@ -591,7 +591,8 @@ router.get('/vendors/jobs', auth, async (req, res) => {
             u.company, u.id AS buyer_employer_id,
             EXISTS (
               SELECT 1 FROM vendor_submissions vs WHERE vs.job_id = j.id AND vs.vendor_employer_id = $1
-            ) AS already_submitted
+            ) AS already_submitted,
+            (SELECT COUNT(*) FROM vendor_submissions vs2 WHERE vs2.job_id = j.id)::int AS submission_count
      FROM jobs j
      JOIN users u ON u.id = j.employer_id
      JOIN employer_vendor_links l ON l.buyer_employer_id = j.employer_id AND l.vendor_employer_id = $1 AND l.status = 'approved'

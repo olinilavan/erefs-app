@@ -118,14 +118,25 @@ export default function EmployerVendorJobs() {
                     <div className="text-sm text-gray-500">{job.company}</div>
                     {job.location && <div className="text-xs text-gray-400 mt-0.5">{job.location}</div>}
                   </div>
-                  {job.already_submitted ? (
-                    <span className="text-xs text-gray-400">Already submitted</span>
-                  ) : (
-                    <button onClick={() => setOpenJobId(openJobId === job.id ? null : job.id)}
-                      className="text-xs bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 font-medium">
-                      {openJobId === job.id ? 'Cancel' : 'Submit Candidate'}
-                    </button>
-                  )}
+                  <div className="flex flex-col items-end gap-2">
+                    {job.already_submitted ? (
+                      <span className="text-xs text-gray-400">
+                        You submitted · {job.submission_count} total
+                      </span>
+                    ) : (
+                      <>
+                        {job.submission_count === 0 ? (
+                          <span className="text-xs text-green-600 font-medium">Be the first to submit</span>
+                        ) : (
+                          <span className="text-xs text-amber-600 font-medium">{job.submission_count} submitted so far</span>
+                        )}
+                        <button onClick={() => setOpenJobId(openJobId === job.id ? null : job.id)}
+                          className="text-xs bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 font-medium">
+                          {openJobId === job.id ? 'Cancel' : 'Submit Candidate'}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 {job.description && <p className="text-sm text-gray-600 mt-2">{job.description}</p>}
                 {openJobId === job.id && (
