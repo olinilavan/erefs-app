@@ -5,6 +5,7 @@ const https = require('https');
 const { OAuth2Client } = require('google-auth-library');
 const db = require('../db');
 const { sendPasswordReset, sendVerificationEmail } = require('../services/email');
+const log = require('../utils/logger');
 
 // ── LinkedIn OAuth helpers ──────────────────────────────────────────────────
 // Uses "Sign In with LinkedIn using OpenID Connect" — the only publicly
@@ -151,9 +152,11 @@ router.post('/register', async (req, res) => {
     );
     await sendVerificationEmail(email, tokenResult.rows[0].token);
 
+    log.info('auth.registered', { userId: user.id, email, role });
     res.json({ message: 'Account created. Please check your email to verify your account.' });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message, code: err.code });
+    log.error('auth.register_error', { email, error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -165,17 +168,22 @@ router.post('/login', async (req, res) => {
     const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
     const user = result.rows[0];
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+      log.warn('auth.login_failed', { email });
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     if (user.is_active === false) {
+      log.warn('auth.login_deactivated', { userId: user.id, email });
       return res.status(403).json({ error: 'Your account has been deactivated. Please contact support.' });
     }
     if (!user.is_verified) {
+      log.warn('auth.login_unverified', { userId: user.id, email });
       return res.status(403).json({ error: 'Please verify your email before logging in.', code: 'EMAIL_NOT_VERIFIED' });
     }
     const token = jwt.sign({ id: user.id, role: user.role, name: user.name, is_admin: user.is_admin || false }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    log.info('auth.login', { userId: user.id, email, role: user.role });
     res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, company: user.company || null, is_admin: user.is_admin || false } });
   } catch (err) {
+    log.error('auth.login_error', { email, error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -318,9 +326,10 @@ router.post('/google', async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+    log.info('auth.google_registered', { userId: user.id, email: user.email, role: user.role });
     res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, company: user.company || null, is_admin: user.is_admin || false } });
   } catch (err) {
-    console.error('[google auth]', err.message);
+    log.error('auth.google_error', { error: err.message });
     res.status(401).json({ error: 'Invalid Google token' });
   }
 });

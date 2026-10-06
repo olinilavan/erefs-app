@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const auth = require('../middleware/auth');
 const { sendDemoEnquiryConfirmation, sendDemoEnquiryAlert } = require('../services/email');
+const log = require('../utils/logger');
 
 const router = express.Router();
 
@@ -23,9 +24,10 @@ router.post('/', async (req, res) => {
   );
   const submission = result.rows[0];
 
-  sendDemoEnquiryConfirmation(submission).catch(err => console.error('[demo confirmation]', err.message));
-  sendDemoEnquiryAlert(submission).catch(err => console.error('[demo alert]', err.message));
+  sendDemoEnquiryConfirmation(submission).catch(err => log.error('demo.email_confirmation_failed', { id: submission.id, error: err.message }));
+  sendDemoEnquiryAlert(submission).catch(err => log.error('demo.email_alert_failed', { id: submission.id, error: err.message }));
 
+  log.info('demo.submitted', { id: submission.id, type, email, company: company || null });
   res.status(201).json({ ok: true });
 });
 

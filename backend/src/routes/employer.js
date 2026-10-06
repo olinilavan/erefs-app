@@ -7,6 +7,7 @@ const { matchCandidatesToJob } = require('../services/matching');
 const { parseResumeFile } = require('../services/resumeParser');
 
 const { getCompanyMemberIds, getUserCompanyId, logActivity } = require('../utils/company');
+const log = require('../utils/logger');
 
 const router = express.Router();
 
@@ -112,6 +113,8 @@ router.post('/jobs', auth, async (req, res) => {
   );
   const job = result.rows[0];
 
+  log.info('job.created', { jobId: job.id, employerId: req.user.id, title: job.title, isPublic: job.is_public });
+
   // Alert approved vendors when a vendor-only job is posted
   if (!job.is_public) {
     db.query(
@@ -123,9 +126,9 @@ router.post('/jobs', auth, async (req, res) => {
     ).then(({ rows }) => {
       const buyer = { name: req.user.name, company: req.user.company };
       rows.forEach(vendor =>
-        sendVendorJobAlert(vendor, buyer, job).catch(err => console.error('[vendor job alert]', err.message))
+        sendVendorJobAlert(vendor, buyer, job).catch(err => log.error('job.vendor_alert_failed', { jobId: job.id, vendorId: vendor.id, error: err.message }))
       );
-    }).catch(err => console.error('[vendor job alert query]', err.message));
+    }).catch(err => log.error('job.vendor_alert_query_failed', { jobId: job.id, error: err.message }));
   }
 
   res.json(job);
@@ -201,6 +204,7 @@ router.post('/jobs/:id/flash', auth, async (req, res) => {
     [req.params.id, req.user.id]
   );
   if (!result.rows.length) return res.status(400).json({ error: 'Not found, or already an active Flash Job' });
+  log.info('job.flash_requested', { jobId: req.params.id, employerId: req.user.id });
   res.json(result.rows[0]);
 });
 
@@ -405,17 +409,39 @@ router.post('/talent/:vmId/contact', auth, async (req, res) => {
 // or declines. Links are direct only — no transitive chaining.
 
 // GET /api/employer/vendors/directory — other employer companies + my outgoing link status with each
+// One row per company (deduped via DISTINCT ON company_id); company admin is the representative.
+// Excludes the caller's own company members. Link status covers any member of the buyer company.
 router.get('/vendors/directory', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
   const result = await db.query(
-    `SELECT u.id, u.name, u.company,
+    `SELECT DISTINCT ON (COALESCE(u.company_id::text, u.id::text))
+            u.id, u.name, u.company,
             u.vendor_specializations, u.vendor_states, u.vendor_bio, u.vendor_website, u.vendor_placement_volume,
-            l.status AS link_status
+            (
+              SELECT l2.status
+              FROM employer_vendor_links l2
+              JOIN users m ON m.id = l2.buyer_employer_id
+              WHERE l2.vendor_employer_id = $1
+                AND (
+                  m.id = u.id
+                  OR (u.company_id IS NOT NULL AND m.company_id = u.company_id)
+                )
+              ORDER BY l2.requested_at DESC
+              LIMIT 1
+            ) AS link_status
      FROM users u
-     LEFT JOIN employer_vendor_links l
-       ON l.buyer_employer_id = u.id AND l.vendor_employer_id = $1
-     WHERE u.role = 'employer' AND u.id != $1 AND (u.is_active IS NULL OR u.is_active = true)
-     ORDER BY u.company NULLS LAST, u.name`,
+     WHERE u.role = 'employer'
+       AND u.id != $1
+       AND (
+         u.company_id IS NULL
+         OR u.company_id NOT IN (
+           SELECT company_id FROM users WHERE id = $1 AND company_id IS NOT NULL
+         )
+       )
+       AND (u.is_active IS NULL OR u.is_active = true)
+     ORDER BY COALESCE(u.company_id::text, u.id::text),
+              u.is_company_admin DESC NULLS LAST,
+              u.name`,
     [req.user.id]
   );
   res.json(result.rows);
@@ -461,8 +487,9 @@ router.post('/vendors/request', auth, async (req, res) => {
     `SELECT name, email, company, vendor_specializations, vendor_states, vendor_bio, vendor_website, vendor_placement_volume
      FROM users WHERE id = $1`, [req.user.id]
   );
-  sendVendorLinkRequest(buyer.rows[0], vendor.rows[0]).catch(err => console.error('[vendor link email]', err.message));
+  sendVendorLinkRequest(buyer.rows[0], vendor.rows[0]).catch(err => log.error('vendor.request_email_failed', { linkId: result.rows[0].id, error: err.message }));
 
+  log.info('vendor.requested', { linkId: result.rows[0].id, vendorId: req.user.id, buyerId: buyerEmployerId });
   res.json(result.rows[0]);
 });
 
@@ -512,8 +539,9 @@ router.delete('/vendors/links/:id', auth, async (req, res) => {
   const otherId = link.buyer_employer_id === req.user.id ? link.vendor_employer_id : link.buyer_employer_id;
   const me = await db.query(`SELECT name, email FROM users WHERE id = $1`, [req.user.id]);
   const other = await db.query(`SELECT name, email, company FROM users WHERE id = $1`, [otherId]);
-  sendVendorLinkRevoked(other.rows[0], me.rows[0]).catch(err => console.error('[vendor link email]', err.message));
+  sendVendorLinkRevoked(other.rows[0], me.rows[0]).catch(err => log.error('vendor.revoke_email_failed', { linkId: req.params.id, error: err.message }));
 
+  log.info('vendor.revoked', { linkId: req.params.id, revokedBy: req.user.id });
   res.json({ success: true });
 });
 
@@ -529,8 +557,9 @@ router.post('/vendors/:id/approve', auth, async (req, res) => {
 
   const buyer = await db.query(`SELECT name, email, company FROM users WHERE id = $1`, [req.user.id]);
   const vendor = await db.query(`SELECT name, email, company FROM users WHERE id = $1`, [result.rows[0].vendor_employer_id]);
-  sendVendorLinkApproved(buyer.rows[0], vendor.rows[0]).catch(err => console.error('[vendor link email]', err.message));
+  sendVendorLinkApproved(buyer.rows[0], vendor.rows[0]).catch(err => log.error('vendor.approve_email_failed', { linkId: req.params.id, error: err.message }));
 
+  log.info('vendor.approved', { linkId: req.params.id, buyerId: req.user.id, vendorId: result.rows[0].vendor_employer_id });
   res.json(result.rows[0]);
 });
 
@@ -546,8 +575,9 @@ router.post('/vendors/:id/decline', auth, async (req, res) => {
 
   const buyer = await db.query(`SELECT name, email, company FROM users WHERE id = $1`, [req.user.id]);
   const vendor = await db.query(`SELECT name, email, company FROM users WHERE id = $1`, [result.rows[0].vendor_employer_id]);
-  sendVendorLinkDeclined(buyer.rows[0], vendor.rows[0]).catch(err => console.error('[vendor link email]', err.message));
+  sendVendorLinkDeclined(buyer.rows[0], vendor.rows[0]).catch(err => log.error('vendor.decline_email_failed', { linkId: req.params.id, error: err.message }));
 
+  log.info('vendor.declined', { linkId: req.params.id, buyerId: req.user.id, vendorId: result.rows[0].vendor_employer_id });
   res.json({ success: true });
 });
 

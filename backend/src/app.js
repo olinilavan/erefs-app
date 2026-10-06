@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const morgan = require('morgan');
+const log = require('./utils/logger');
 
 const authRoutes = require('./routes/auth');
 const referralRoutes = require('./routes/referrals');
@@ -33,6 +35,7 @@ app.use(cors({
     }
   },
 }));
+app.use(morgan('combined'));
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
@@ -52,6 +55,18 @@ app.use('/api/company', companyRoutes);
 app.use('/api/demo', demoRoutes);
 app.use('/api/chat', chatRoutes);
 
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+
+// Global error handler — catches unhandled errors from any route
+app.use((err, req, res, _next) => {
+  log.error('unhandled_error', {
+    method: req.method,
+    path: req.path,
+    error: err.message,
+    stack: err.stack,
+    userId: req.user?.id,
+  });
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 module.exports = app;

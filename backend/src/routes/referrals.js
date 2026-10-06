@@ -3,6 +3,7 @@ const db = require('../db');
 const auth = require('../middleware/auth');
 const { sendReferrerInvite, sendCandidateProfileInvite } = require('../services/email');
 const { v4: uuidv4 } = require('uuid');
+const log = require('../utils/logger');
 
 const router = express.Router();
 
@@ -80,15 +81,22 @@ router.post('/', auth, async (req, res) => {
     }
 
     await client.query('COMMIT');
+    log.info('referral.created', {
+      requestId: referralRequest.id,
+      requesterId: req.user.id,
+      role: req.user.role,
+      referrerCount: createdReferrers.length,
+    });
     res.json({ referralRequest, referrers: createdReferrers });
 
     if (candidateToken) {
       sendCandidateProfileInvite(referralRequest).catch((err) => {
-        console.error('[sendCandidateProfileInvite failed]', err.message);
+        log.error('referral.candidate_invite_failed', { requestId: referralRequest.id, error: err.message });
       });
     }
   } catch (err) {
     await client.query('ROLLBACK');
+    log.error('referral.create_error', { requesterId: req.user.id, error: err.message });
     res.status(500).json({ error: err.message });
   } finally {
     client.release();

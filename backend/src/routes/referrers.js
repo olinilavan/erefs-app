@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { generateReport } = require('../services/llm');
+const log = require('../utils/logger');
 
 const router = express.Router();
 
@@ -66,9 +67,11 @@ router.post('/:token/submit', async (req, res) => {
     );
     await client.query('COMMIT');
 
+    log.info('referrer.submitted', { referrerId: referrer.id, requestId: referrer.referral_request_id });
+
     // Only generate report for completed submissions
     generateReport(referrer.id).catch((err) => {
-      console.error('[generateReport failed]', err.message);
+      log.error('referrer.report_failed', { referrerId: referrer.id, error: err.message });
     });
 
     // Mark referral request completed when no referrers are still pending

@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const { sendBgCheckInvite, sendBgCheckSubmitted, sendBgCheckDeclined, sendReferrerInvite } = require('../services/email');
 
 const { getCompanyMemberIds } = require('../utils/company');
+const log = require('../utils/logger');
 
 const employerRouter = express.Router();
 const publicRouter  = express.Router();
@@ -55,8 +56,9 @@ employerRouter.post('/bg-checks', auth, requireEmployer, async (req, res) => {
     check.token,
     { reference: !!includeReference, education: !!includeEducation, criminal: !!includeCriminal, employment: !!includeEmployment },
     days
-  ).catch(err => console.error('[bg check invite failed]', err.message));
+  ).catch(err => log.error('bgcheck.invite_email_failed', { checkId: check.id, error: err.message }));
 
+  log.info('bgcheck.created', { checkId: check.id, employerId: req.user.id, candidateEmail });
   res.status(201).json(check);
 });
 
@@ -452,16 +454,18 @@ publicRouter.post('/:token/submit', async (req, res) => {
 
     await client.query('COMMIT');
 
+    log.info('bgcheck.submitted', { checkId: check.id });
+
     // Notify employer
     sendBgCheckSubmitted(
       { name: check.employer_name, email: check.employer_email },
       { name: check.candidate_name, role: check.target_role, checkId: check.id }
-    ).catch(err => console.error('[bg check submitted notify failed]', err.message));
+    ).catch(err => log.error('bgcheck.submitted_email_failed', { checkId: check.id, error: err.message }));
 
     res.json({ ok: true });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('[bg check submit error]', err);
+    log.error('bgcheck.submit_error', { error: err.message });
     res.status(500).json({ error: 'Submission failed — please try again' });
   } finally {
     client.release();
