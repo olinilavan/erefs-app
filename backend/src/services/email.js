@@ -793,4 +793,33 @@ async function sendBenchReport(employer, resources, days) {
   else console.log('[bench report email sent]', data?.id, '→', employer.email);
 }
 
-module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendCandidateProfileInvite, sendEmployerContactRequest, sendNewApplicantNotification, sendAdminReminderReport, sendVendorLinkRequest, sendVendorLinkApproved, sendVendorLinkDeclined, sendVendorLinkRevoked, sendVendorSubmissionNotification, sendVendorJobAlert, sendDemoEnquiryConfirmation, sendDemoEnquiryAlert, sendReleaseNote, sendBgCheckInvite, sendBgCheckSubmitted, sendBgCheckDeclined, sendBenchReport };
+async function sendCompanyInvite(toEmail, inviteUrl, senderName, companyName) {
+  console.log(`\n[DEV] Company invite → ${toEmail}\nFrom: ${senderName} (${companyName})\nLink: ${inviteUrl}\n`);
+  if (isDev) return;
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: toEmail,
+    subject: `${senderName} invited you to join ${companyName} on VouchMetrics`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a2e;">You've been invited to join ${companyName}</h2>
+        <p><strong>${senderName}</strong> has invited you to join their team on VouchMetrics.</p>
+        <p style="color: #6b7280; font-size: 14px;">This is a single-use link and expires in 7 days.</p>
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${inviteUrl}" style="background: #0f766e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+            Accept Invitation
+          </a>
+        </p>
+        <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+          Or copy this link: ${inviteUrl}
+        </p>
+      </div>
+    `,
+  });
+
+  if (error) console.error('[company invite email failed]', error);
+  else console.log('[company invite email sent]', data?.id, '→', toEmail);
+}
+
+module.exports = { sendReferrerInvite, sendPasswordReset, sendVerificationEmail, sendReminderEmail, sendCandidateProfileInvite, sendEmployerContactRequest, sendNewApplicantNotification, sendAdminReminderReport, sendVendorLinkRequest, sendVendorLinkApproved, sendVendorLinkDeclined, sendVendorLinkRevoked, sendVendorSubmissionNotification, sendVendorJobAlert, sendDemoEnquiryConfirmation, sendDemoEnquiryAlert, sendReleaseNote, sendBgCheckInvite, sendBgCheckSubmitted, sendBgCheckDeclined, sendBenchReport, sendCompanyInvite };

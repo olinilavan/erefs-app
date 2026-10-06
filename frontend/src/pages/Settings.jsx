@@ -30,6 +30,9 @@ export default function Settings() {
   const [inviteLink, setInviteLink] = useState('');
   const [generatingInvite, setGeneratingInvite] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [sendingInviteEmail, setSendingInviteEmail] = useState(false);
+  const [inviteEmailSent, setInviteEmailSent] = useState(false);
 
   useEffect(() => {
     api.get('/api/settings').then(r => setForm(r.data));
@@ -53,10 +56,30 @@ export default function Settings() {
     }
   }
 
+  async function sendInviteEmail() {
+    if (!inviteEmail) return;
+    setSendingInviteEmail(true);
+    try {
+      const r = await api.post('/api/company/invites', { inviteEmail });
+      setInviteLink(r.data.inviteUrl);
+      setInviteEmailSent(true);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to send invite email');
+    } finally {
+      setSendingInviteEmail(false);
+    }
+  }
+
   function copyInvite() {
     navigator.clipboard.writeText(inviteLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  }
+
+  function resetInvite() {
+    setInviteLink('');
+    setInviteEmail('');
+    setInviteEmailSent(false);
   }
 
   async function handleSubmit(e) {
@@ -239,7 +262,14 @@ export default function Settings() {
 
               {form?.is_company_admin && (
                 <div className="space-y-3 pt-1 border-t border-gray-100">
-                  <p className="text-xs text-gray-500">Generate a single-use invite link to add a team member. The link expires in 7 days.</p>
+                  <p className="text-xs text-gray-500">Invite a team member by email, or generate a link to share yourself. Each invite is single-use and expires in 7 days.</p>
+
+                  {inviteEmailSent ? (
+                    <div className="rounded-lg bg-teal-50 border border-teal-200 px-4 py-3 text-sm text-teal-800">
+                      Invite sent to <strong>{inviteEmail}</strong>
+                    </div>
+                  ) : null}
+
                   {inviteLink ? (
                     <div className="flex items-center gap-2">
                       <input readOnly value={inviteLink}
@@ -249,16 +279,34 @@ export default function Settings() {
                         {copied ? '✓ Copied' : 'Copy'}
                       </button>
                     </div>
+                  ) : null}
+
+                  {inviteLink ? (
+                    <button onClick={resetInvite}
+                      className="text-sm text-teal-700 font-medium hover:underline">
+                      + Generate another invite
+                    </button>
                   ) : (
-                    <button onClick={generateInvite} disabled={generatingInvite}
-                      className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition disabled:opacity-50">
-                      {generatingInvite ? 'Generating…' : '+ Generate Invite Link'}
-                    </button>
-                  )}
-                  {inviteLink && (
-                    <button onClick={() => { setInviteLink(''); }} className="text-xs text-gray-400 hover:text-gray-600">
-                      Generate another
-                    </button>
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="email"
+                          placeholder="colleague@company.com"
+                          value={inviteEmail}
+                          onChange={e => setInviteEmail(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && sendInviteEmail()}
+                          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        />
+                        <button onClick={sendInviteEmail} disabled={sendingInviteEmail || !inviteEmail}
+                          className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition disabled:opacity-50 whitespace-nowrap">
+                          {sendingInviteEmail ? 'Sending…' : 'Send Invite'}
+                        </button>
+                      </div>
+                      <button onClick={generateInvite} disabled={generatingInvite}
+                        className="text-sm text-teal-700 font-medium hover:underline disabled:opacity-50">
+                        {generatingInvite ? 'Generating…' : 'Or generate a link to copy'}
+                      </button>
+                    </div>
                   )}
                 </div>
               )}

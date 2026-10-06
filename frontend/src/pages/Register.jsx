@@ -114,15 +114,17 @@ export default function Register() {
         )}
         {error && <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm">{error}</div>}
 
-        <div className="flex bg-gray-100 rounded-lg p-1 mb-6 mt-4">
-          {['jobseeker', 'employer'].map(r => (
-            <button key={r} type="button"
-              onClick={() => setForm({ ...form, role: r })}
-              className={`flex-1 py-2 rounded-md text-sm font-medium transition ${form.role === r ? 'bg-white shadow text-teal-700' : 'text-gray-500'}`}>
-              {r === 'jobseeker' ? 'Job Seeker' : 'Employer'}
-            </button>
-          ))}
-        </div>
+        {!inviteToken && (
+          <div className="flex bg-gray-100 rounded-lg p-1 mb-6 mt-4">
+            {['jobseeker', 'employer'].map(r => (
+              <button key={r} type="button"
+                onClick={() => setForm({ ...form, role: r })}
+                className={`flex-1 py-2 rounded-md text-sm font-medium transition ${form.role === r ? 'bg-white shadow text-teal-700' : 'text-gray-500'}`}>
+                {r === 'jobseeker' ? 'Job Seeker' : 'Employer'}
+              </button>
+            ))}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <input type="text" placeholder="Full name" required value={form.name}
@@ -146,8 +148,10 @@ export default function Register() {
           )}
           {form.role === 'employer' && (
             inviteToken && inviteCompany ? (
-              <input type="text" value={form.company} disabled
-                className="w-full border border-gray-200 rounded-lg px-4 py-3 bg-gray-50 text-gray-500 cursor-not-allowed" />
+              <div className="w-full border border-gray-200 rounded-lg px-4 py-3 bg-gray-50 flex items-center justify-between">
+                <span className="text-sm text-gray-700 font-medium">{inviteCompany}</span>
+                <span className="text-xs text-gray-400 ml-2">Company (set by invite)</span>
+              </div>
             ) : (
               <input type="text" placeholder="Company name" value={form.company}
                 onChange={e => setForm({ ...form, company: e.target.value })}

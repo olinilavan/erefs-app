@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { sendCompanyInvite } = require('../services/email');
 
 const router = express.Router();
 
@@ -83,11 +84,14 @@ router.get('/invites', auth, requireEmployer, async (req, res) => {
 });
 
 // POST /api/company/invites  (company admin only — generates a single-use link)
+// Optional body: { inviteEmail } — if provided, emails the link directly to that address
 router.post('/invites', auth, requireEmployer, async (req, res) => {
   try {
     const { company_id, is_company_admin } = await getUserCompany(req.user.id);
     if (!company_id)       return res.status(400).json({ error: 'You are not part of a company' });
     if (!is_company_admin) return res.status(403).json({ error: 'Only company admins can generate invite links' });
+
+    const { inviteEmail } = req.body;
 
     const token = crypto.randomBytes(32).toString('hex');
     const { rows } = await db.query(`
@@ -98,6 +102,12 @@ router.post('/invites', auth, requireEmployer, async (req, res) => {
 
     const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0];
     const inviteUrl = `${frontendBase}/register?invite=${token}`;
+
+    if (inviteEmail) {
+      const { rows: companyRows } = await db.query('SELECT name FROM companies WHERE id = $1', [company_id]);
+      sendCompanyInvite(inviteEmail, inviteUrl, req.user.name, companyRows[0]?.name)
+        .catch(err => console.error('[company invite email failed]', err.message));
+    }
 
     res.json({ token: rows[0].token, expiresAt: rows[0].expires_at, inviteUrl });
   } catch (err) {
