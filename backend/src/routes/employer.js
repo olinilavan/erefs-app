@@ -583,22 +583,31 @@ router.post('/vendors/:id/decline', auth, async (req, res) => {
 
 // ── Vendor jobs — what an approved vendor can see and submit to ────────────
 
-// GET /api/employer/vendors/jobs — active jobs from buyers where I'm an approved vendor
+// GET /api/employer/vendors/jobs — active jobs from buyers where my company is an approved vendor
+// Checks all company members so any colleague's approved link grants access to the whole team.
 router.get('/vendors/jobs', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
+  const memberIds = await getCompanyMemberIds(req.user.id);
   const result = await db.query(
     `SELECT j.id, j.title, j.description, j.location, j.work_requirement, j.is_public, j.created_at,
             u.company, u.id AS buyer_employer_id,
             EXISTS (
-              SELECT 1 FROM vendor_submissions vs WHERE vs.job_id = j.id AND vs.vendor_employer_id = $1
+              SELECT 1 FROM vendor_submissions vs
+              WHERE vs.job_id = j.id AND vs.vendor_employer_id = ANY($2::uuid[])
             ) AS already_submitted,
             (SELECT COUNT(*) FROM vendor_submissions vs2 WHERE vs2.job_id = j.id)::int AS submission_count
      FROM jobs j
      JOIN users u ON u.id = j.employer_id
-     JOIN employer_vendor_links l ON l.buyer_employer_id = j.employer_id AND l.vendor_employer_id = $1 AND l.status = 'approved'
-     WHERE j.status = 'active' AND (j.expires_at IS NULL OR j.expires_at > NOW())
+     WHERE j.status = 'active'
+       AND (j.expires_at IS NULL OR j.expires_at > NOW())
+       AND EXISTS (
+         SELECT 1 FROM employer_vendor_links l
+         WHERE l.buyer_employer_id = j.employer_id
+           AND l.vendor_employer_id = ANY($2::uuid[])
+           AND l.status = 'approved'
+       )
      ORDER BY j.created_at DESC`,
-    [req.user.id]
+    [req.user.id, memberIds]
   );
   res.json(result.rows);
 });
