@@ -86,11 +86,14 @@ router.get('/jobs', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
   const memberIds = req.query.owner === 'mine' ? [req.user.id] : await getCompanyMemberIds(req.user.id);
   const result = await db.query(
-    `SELECT j.*, COUNT(ja.id) AS applicant_count,
+    `SELECT j.*,
+       COUNT(DISTINCT ja.id) AS applicant_count,
+       COUNT(DISTINCT vs.id) AS vendor_submission_count,
        u.name AS created_by_name,
        m.name AS last_modified_by_name
      FROM jobs j
      LEFT JOIN job_applications ja ON ja.job_id = j.id
+     LEFT JOIN vendor_submissions vs ON vs.job_id = j.id
      LEFT JOIN users u ON u.id = j.employer_id
      LEFT JOIN users m ON m.id = j.last_modified_by
      WHERE j.employer_id = ANY($1::uuid[])
@@ -265,10 +268,10 @@ router.get('/jobs/:id/applicants', auth, async (req, res) => {
 
   const vendorResult = await db.query(
     `SELECT vs.id, vs.candidate_name, vs.candidate_email, vs.candidate_phone, vs.resume_text,
-            vs.cover_note, vs.status, vs.created_at,
+            vs.cover_note, vs.status, vs.created_at, vs.fit_score, vs.fit_rationale, vs.fit_evaluated_at,
             u.company AS vendor_company, u.name AS vendor_name
      FROM vendor_submissions vs JOIN users u ON u.id = vs.vendor_employer_id
-     WHERE vs.job_id = $1 ORDER BY vs.created_at DESC`,
+     WHERE vs.job_id = $1 ORDER BY vs.fit_score DESC NULLS LAST, vs.created_at DESC`,
     [req.params.id]
   );
 
@@ -294,42 +297,63 @@ router.patch('/jobs/:id/vendor-submissions/:submissionId', auth, async (req, res
 });
 
 // POST /api/employer/jobs/:id/match-candidates — on-demand only, never automatic.
-// Ranks current applicants against the job via the LLM and caches the result on
-// job_applications so re-viewing the page doesn't re-trigger a Groq call.
+// Scores both direct applicants (job_applications) and vendor submissions against the job.
 router.post('/jobs/:id/match-candidates', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
-  const jobCheck = await db.query(`SELECT * FROM jobs WHERE id = $1 AND employer_id = $2`, [req.params.id, req.user.id]);
+  const memberIds = await getCompanyMemberIds(req.user.id);
+  const jobCheck = await db.query(`SELECT * FROM jobs WHERE id = $1 AND employer_id = ANY($2::uuid[])`, [req.params.id, memberIds]);
   if (!jobCheck.rows.length) return res.status(404).json({ error: 'Not found' });
   const job = jobCheck.rows[0];
 
-  const applicantsResult = await db.query(
-    `SELECT id, resume_text, message FROM job_applications WHERE job_id = $1`,
-    [req.params.id]
-  );
-  if (!applicantsResult.rows.length) return res.status(400).json({ error: 'No applicants to match yet' });
+  const [applicantsResult, vendorResult] = await Promise.all([
+    db.query(`SELECT id, resume_text, message FROM job_applications WHERE job_id = $1`, [req.params.id]),
+    db.query(`SELECT id, resume_text, cover_note AS message FROM vendor_submissions WHERE job_id = $1`, [req.params.id]),
+  ]);
+
+  const allCandidates = [...applicantsResult.rows, ...vendorResult.rows];
+  if (!allCandidates.length) return res.status(400).json({ error: 'No candidates to match yet' });
 
   let matches;
   try {
-    matches = await matchCandidatesToJob(job, applicantsResult.rows);
+    matches = await matchCandidatesToJob(job, allCandidates);
   } catch (err) {
-    console.error('[matchCandidatesToJob failed]', err.message);
+    log.error('match_candidates.failed', { jobId: req.params.id, error: err.message });
     return res.status(502).json({ error: 'AI matching failed — please try again' });
   }
 
+  const appIds = new Set(applicantsResult.rows.map(r => r.id));
   for (const m of matches) {
-    await db.query(
-      `UPDATE job_applications SET fit_score = $1, fit_rationale = $2, fit_evaluated_at = NOW() WHERE id = $3 AND job_id = $4`,
-      [m.fitScore, [m.rationale, ...(m.concerns?.length ? [`Concerns: ${m.concerns.join(', ')}`] : [])].join(' '), m.id, req.params.id]
-    );
+    const rationale = [m.rationale, ...(m.concerns?.length ? [`Concerns: ${m.concerns.join(', ')}`] : [])].join(' ');
+    if (appIds.has(m.id)) {
+      await db.query(
+        `UPDATE job_applications SET fit_score = $1, fit_rationale = $2, fit_evaluated_at = NOW() WHERE id = $3 AND job_id = $4`,
+        [m.fitScore, rationale, m.id, req.params.id]
+      );
+    } else {
+      await db.query(
+        `UPDATE vendor_submissions SET fit_score = $1, fit_rationale = $2, fit_evaluated_at = NOW() WHERE id = $3 AND job_id = $4`,
+        [m.fitScore, rationale, m.id, req.params.id]
+      );
+    }
   }
 
-  const result = await db.query(
-    `SELECT id, applicant_name, applicant_email, resume_url, resume_text, message, created_at,
-            fit_score, fit_rationale, fit_evaluated_at
-     FROM job_applications WHERE job_id = $1 ORDER BY fit_score DESC NULLS LAST`,
-    [req.params.id]
-  );
-  res.json({ job, applicants: result.rows });
+  const [finalApplicants, finalVendorSubmissions] = await Promise.all([
+    db.query(
+      `SELECT id, applicant_name, applicant_email, resume_url, resume_text, message, created_at,
+              fit_score, fit_rationale, fit_evaluated_at
+       FROM job_applications WHERE job_id = $1 ORDER BY fit_score DESC NULLS LAST`,
+      [req.params.id]
+    ),
+    db.query(
+      `SELECT vs.id, vs.candidate_name, vs.candidate_email, vs.candidate_phone, vs.resume_text,
+              vs.cover_note, vs.status, vs.created_at, vs.fit_score, vs.fit_rationale, vs.fit_evaluated_at,
+              u.company AS vendor_company, u.name AS vendor_name
+       FROM vendor_submissions vs JOIN users u ON u.id = vs.vendor_employer_id
+       WHERE vs.job_id = $1 ORDER BY vs.fit_score DESC NULLS LAST`,
+      [req.params.id]
+    ),
+  ]);
+  res.json({ job, applicants: finalApplicants.rows, vendorSubmissions: finalVendorSubmissions.rows });
 });
 
 const TALENT_PAGE_SIZE = 20;

@@ -40,7 +40,9 @@ export default function JobApplicants() {
     }
   }
 
-  const hasAnyFitScore = data?.applicants.some(a => a.fit_score != null);
+  const totalCount = (data?.applicants.length ?? 0) + (data?.vendorSubmissions?.length ?? 0);
+  const hasAnyFitScore = data?.applicants.some(a => a.fit_score != null) ||
+                         data?.vendorSubmissions?.some(s => s.fit_score != null);
 
   async function updateSubmissionStatus(submissionId, status) {
     const r = await api.patch(`/api/employer/jobs/${id}/vendor-submissions/${submissionId}`, { status });
@@ -65,7 +67,7 @@ export default function JobApplicants() {
           <>
             <div className="flex justify-between items-start mt-2 mb-1">
               <h1 className="text-2xl font-bold">{data.job.title}</h1>
-              {data.applicants.length > 0 && (
+              {totalCount > 0 && (
                 <button onClick={runMatching} disabled={matching}
                   className="text-sm bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition disabled:opacity-50 whitespace-nowrap">
                   {matching ? 'Matching…' : hasAnyFitScore ? '🤖 Re-run Matching' : '🤖 Match Candidates'}
@@ -73,7 +75,12 @@ export default function JobApplicants() {
               )}
             </div>
             <p className="text-gray-500 text-sm mb-2">
-              {data.applicants.length} applicant{data.applicants.length !== 1 ? 's' : ''}
+              {totalCount} candidate{totalCount !== 1 ? 's' : ''}
+              {data.vendorSubmissions?.length > 0 && (
+                <span className="text-gray-400 ml-1">
+                  ({data.applicants.length} direct · {data.vendorSubmissions.length} via vendor)
+                </span>
+              )}
             </p>
             {matchError && <p className="text-sm text-red-500 mb-4">{matchError}</p>}
             {hasAnyFitScore && (
@@ -158,8 +165,18 @@ export default function JobApplicants() {
                           <div className="text-sm text-gray-400">{s.candidate_email}{s.candidate_phone ? ` · ${s.candidate_phone}` : ''}</div>
                           <div className="text-xs text-purple-600 mt-0.5">via {s.vendor_company || s.vendor_name}</div>
                         </div>
-                        <span className="text-xs text-gray-400 whitespace-nowrap">{new Date(s.created_at).toLocaleDateString()}</span>
+                        <div className="flex items-center gap-2">
+                          {s.fit_score != null && (
+                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${fitColor(s.fit_score)}`}>
+                              Fit: {s.fit_score}
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-400 whitespace-nowrap">{new Date(s.created_at).toLocaleDateString()}</span>
+                        </div>
                       </div>
+                      {s.fit_rationale && (
+                        <p className="text-sm text-gray-700 mt-2 bg-teal-50 rounded-lg px-3 py-2">{s.fit_rationale}</p>
+                      )}
 
                       {s.resume_text && (
                         <div className="mt-2 bg-gray-50 rounded-lg px-3 py-2.5 border border-gray-100">

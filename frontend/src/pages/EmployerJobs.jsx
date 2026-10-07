@@ -237,7 +237,15 @@ function JobCard({ job, currentUserId, onUpdated, onDeleted }) {
 
       <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
         <Link to={`/employer/jobs/${job.id}/applicants`} className="text-sm text-teal-600 hover:underline font-medium">
-          {job.applicant_count} applicant{job.applicant_count !== '1' ? 's' : ''} →
+          {(() => {
+            const direct = parseInt(job.applicant_count) || 0;
+            const vendor = parseInt(job.vendor_submission_count) || 0;
+            const total = direct + vendor;
+            if (total === 0) return '0 candidates →';
+            if (vendor === 0) return `${direct} applicant${direct !== 1 ? 's' : ''} →`;
+            if (direct === 0) return `${vendor} vendor submission${vendor !== 1 ? 's' : ''} →`;
+            return `${total} candidates (${direct} direct · ${vendor} via vendor) →`;
+          })()}
         </Link>
         <div className="flex gap-3">
           <button onClick={() => setEditing(true)} className="text-xs text-gray-500 hover:text-teal-600 transition">
