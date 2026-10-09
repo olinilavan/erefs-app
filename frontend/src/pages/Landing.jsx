@@ -299,45 +299,71 @@ function FlashJobsSection() {
 }
 
 export default function Landing() {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-white text-gray-900">
 
       {/* Nav */}
-      <nav className="flex justify-between items-center px-4 md:px-8 py-4 md:py-5 max-w-6xl mx-auto border-b border-gray-100">
-        <Logo to="/" height={100} />
-        <div className="flex gap-2 md:gap-3 items-center">
-          <Link to="/talent" className="hidden md:block px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium">Available Talent Pool</Link>
-          <Link to="/jobs" className="hidden md:block px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium">Open Roles</Link>
-          <Link to="/demo" className="hidden md:block px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium">Book a Demo</Link>
-          <Link to="/login" className="px-3 md:px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium text-sm md:text-base">Log in</Link>
-          <Link to="/register" className="px-3 md:px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700 transition text-sm md:text-base">Get Started Free</Link>
+      <nav className="border-b border-gray-100">
+        <div className="flex justify-between items-center px-4 md:px-8 py-4 md:py-5 max-w-6xl mx-auto">
+          <Logo to="/" height={100} />
+          {/* Desktop links */}
+          <div className="hidden md:flex gap-2 md:gap-3 items-center">
+            <Link to="/talent" className="px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium">Talent Pool</Link>
+            <Link to="/jobs" className="px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium">Open Roles</Link>
+            <Link to="/demo" className="px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium">Book a Demo</Link>
+            <Link to="/login" className="px-4 py-2 text-gray-600 hover:text-teal-700 transition font-medium">Log in</Link>
+            <Link to="/register" className="px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700 transition">Get Started Free</Link>
+          </div>
+          {/* Mobile hamburger */}
+          <button className="md:hidden p-2 text-gray-600" onClick={() => setMobileNavOpen(o => !o)} aria-label="Toggle menu">
+            {mobileNavOpen ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+            )}
+          </button>
         </div>
+        {/* Mobile dropdown */}
+        {mobileNavOpen && (
+          <div className="md:hidden border-t border-gray-100 px-4 py-3 flex flex-col gap-1 bg-white">
+            <Link to="/talent" className="py-2.5 text-gray-700 font-medium" onClick={() => setMobileNavOpen(false)}>Talent Pool</Link>
+            <Link to="/jobs" className="py-2.5 text-gray-700 font-medium" onClick={() => setMobileNavOpen(false)}>Open Roles</Link>
+            <Link to="/demo" className="py-2.5 text-gray-700 font-medium" onClick={() => setMobileNavOpen(false)}>Book a Demo</Link>
+            <Link to="/login" className="py-2.5 text-gray-700 font-medium" onClick={() => setMobileNavOpen(false)}>Log in</Link>
+            <Link to="/register" className="mt-1 py-2.5 px-4 bg-teal-600 text-white rounded-lg font-semibold text-center" onClick={() => setMobileNavOpen(false)}>Get Started Free</Link>
+          </div>
+        )}
       </nav>
 
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-4 md:px-8 pt-12 md:pt-20 pb-10 md:pb-16 text-center">
         <h1 className="text-3xl md:text-5xl font-bold leading-tight mb-6 text-gray-900">
-          Smarter hiring,<br />
-          <span className="text-teal-600">end to end</span>
+          Reference checks you can<br />
+          <span className="text-teal-600">actually trust.</span>
         </h1>
-        <p className="text-xl text-gray-500 mb-10 max-w-2xl mx-auto leading-relaxed">
-          VouchMetrics brings your entire hiring process into one place — post jobs, verify candidates,
-          run background checks, and collaborate with staffing vendors.
+        <p className="text-xl text-gray-500 mb-4 max-w-2xl mx-auto leading-relaxed">
+          VouchMetrics runs AI-verified reference checks — structured reports with scores and insights,
+          ready in minutes. Post roles, screen candidates, and manage vendors in the same place.
         </p>
+        <p className="text-sm text-gray-400 mb-10">No credit card required · Reports ready in minutes</p>
         <div className="flex gap-4 justify-center flex-wrap">
           <Link to="/register?role=employer"
             className="px-7 py-3.5 bg-teal-600 text-white rounded-xl font-semibold hover:bg-teal-700 transition text-lg shadow-sm">
-            I'm hiring
-          </Link>
-          <Link to="/register?role=jobseeker"
-            className="px-7 py-3.5 border-2 border-teal-200 text-teal-700 rounded-xl font-semibold hover:bg-teal-50 transition text-lg">
-            I'm job seeking
+            Verify your first candidate free
           </Link>
           <Link to="/demo"
             className="px-7 py-3.5 border-2 border-gray-200 text-gray-600 rounded-xl font-semibold hover:bg-gray-50 transition text-lg">
             Book a demo
           </Link>
         </div>
+        <p className="mt-6 text-sm text-gray-400">
+          Job seeker?{' '}
+          <Link to="/register?role=jobseeker" className="text-teal-600 hover:underline font-medium">
+            Build your verified reference profile →
+          </Link>
+        </p>
       </section>
 
       <FlashJobsSection />
@@ -419,14 +445,14 @@ export default function Landing() {
 
       {/* CTA */}
       <section className="max-w-3xl mx-auto px-8 py-20 text-center">
-        <h2 className="text-3xl font-bold mb-4">Your hiring platform, all in one place</h2>
+        <h2 className="text-3xl font-bold mb-4">Stop hiring on faith.</h2>
         <p className="text-gray-500 mb-8 text-lg">
-          From sourcing to verification to vendor collaboration — make better hires, faster.
+          Run your first verified reference check free — no credit card required.
         </p>
         <div className="flex gap-4 justify-center flex-wrap">
-          <Link to="/register"
+          <Link to="/register?role=employer"
             className="inline-block px-8 py-4 bg-teal-600 text-white rounded-xl font-bold text-lg hover:bg-teal-700 transition shadow-sm">
-            Get started for free →
+            Get started free →
           </Link>
           <Link to="/demo"
             className="inline-block px-8 py-4 border-2 border-gray-200 text-gray-600 rounded-xl font-bold text-lg hover:bg-gray-50 transition">
@@ -439,12 +465,14 @@ export default function Landing() {
 
       {/* Footer */}
       <footer className="border-t border-gray-100 py-8 px-8">
-        <div className="max-w-6xl mx-auto flex justify-between items-center text-sm text-gray-400">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-400">
           <Logo height={28} />
-          <div className="flex gap-4">
-            <span>© {new Date().getFullYear()} VouchMetrics</span>
+          <div className="flex flex-wrap justify-center gap-4">
+            <span>© {new Date().getFullYear()} VouchMetrics · A product of <a href="https://onrsys.com/" target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 transition">ONR Systems</a></span>
             <Link to="/demo" className="hover:text-gray-600 transition">Book a Demo</Link>
             <Link to="/terms" className="hover:text-gray-600 transition">Terms & Conditions</Link>
+            <Link to="/privacy" className="hover:text-gray-600 transition">Privacy Policy</Link>
+            <a href="mailto:admin@vouchmetrics.com" className="hover:text-gray-600 transition">Contact</a>
           </div>
         </div>
       </footer>

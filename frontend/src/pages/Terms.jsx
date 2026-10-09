@@ -78,7 +78,7 @@ export default function Terms() {
 
       <footer className="border-t border-gray-100 py-6 px-8 mt-10">
         <div className="max-w-3xl mx-auto text-sm text-gray-400">
-          © {new Date().getFullYear()} VouchMetrics — All rights reserved
+          © {new Date().getFullYear()} VouchMetrics · A product of <a href="https://onrsys.com/" target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 transition">ONR Systems</a> · All rights reserved
         </div>
       </footer>
     </div>
