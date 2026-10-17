@@ -47,7 +47,7 @@ router.get('/team', auth, requireEmployer, async (req, res) => {
     if (!company_id) return res.json({ company: null, members: [] });
 
     const [compRes, membersRes] = await Promise.all([
-      db.query('SELECT id, name, domain FROM companies WHERE id = $1', [company_id]),
+      db.query('SELECT id, name, domain, logo_url FROM companies WHERE id = $1', [company_id]),
       db.query(
         `SELECT id, name, email, is_company_admin, created_at
          FROM users WHERE company_id = $1 ORDER BY is_company_admin DESC, name ASC`,
@@ -110,6 +110,24 @@ router.post('/invites', auth, requireEmployer, async (req, res) => {
     }
 
     res.json({ token: rows[0].token, expiresAt: rows[0].expires_at, inviteUrl });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/company/logo — company admin only
+router.put('/logo', auth, requireEmployer, async (req, res) => {
+  try {
+    const { company_id, is_company_admin } = await getUserCompany(req.user.id);
+    if (!company_id)       return res.status(400).json({ error: 'Not part of a company' });
+    if (!is_company_admin) return res.status(403).json({ error: 'Only company admins can update the logo' });
+
+    const { logoUrl } = req.body;
+    const { rows } = await db.query(
+      `UPDATE companies SET logo_url = $1 WHERE id = $2 RETURNING logo_url`,
+      [logoUrl || null, company_id]
+    );
+    res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -90,14 +90,16 @@ router.get('/jobs', auth, async (req, res) => {
        COUNT(DISTINCT ja.id) AS applicant_count,
        COUNT(DISTINCT vs.id) AS vendor_submission_count,
        u.name AS created_by_name,
-       m.name AS last_modified_by_name
+       m.name AS last_modified_by_name,
+       co.logo_url
      FROM jobs j
      LEFT JOIN job_applications ja ON ja.job_id = j.id
      LEFT JOIN vendor_submissions vs ON vs.job_id = j.id
      LEFT JOIN users u ON u.id = j.employer_id
      LEFT JOIN users m ON m.id = j.last_modified_by
+     LEFT JOIN companies co ON co.id = u.company_id
      WHERE j.employer_id = ANY($1::uuid[])
-     GROUP BY j.id, u.name, m.name
+     GROUP BY j.id, u.name, m.name, co.logo_url
      ORDER BY j.created_at DESC`,
     [memberIds]
   );
@@ -256,7 +258,14 @@ router.get('/activity', auth, async (req, res) => {
 router.get('/jobs/:id/applicants', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
   const memberIds = await getCompanyMemberIds(req.user.id);
-  const jobCheck = await db.query(`SELECT id, title FROM jobs WHERE id = $1 AND employer_id = ANY($2::uuid[])`, [req.params.id, memberIds]);
+  const jobCheck = await db.query(
+    `SELECT j.id, j.title, co.logo_url
+     FROM jobs j
+     JOIN users u ON u.id = j.employer_id
+     LEFT JOIN companies co ON co.id = u.company_id
+     WHERE j.id = $1 AND j.employer_id = ANY($2::uuid[])`,
+    [req.params.id, memberIds]
+  );
   if (!jobCheck.rows.length) return res.status(404).json({ error: 'Not found' });
 
   const result = await db.query(
@@ -634,6 +643,7 @@ router.get('/vendors/jobs', auth, async (req, res) => {
   const result = await db.query(
     `SELECT j.id, j.title, j.description, j.location, j.work_requirement, j.is_public, j.created_at,
             u.company, u.id AS buyer_employer_id,
+            co.logo_url,
             EXISTS (
               SELECT 1 FROM vendor_submissions vs
               WHERE vs.job_id = j.id AND vs.vendor_employer_id = ANY($1::uuid[])
@@ -641,6 +651,7 @@ router.get('/vendors/jobs', auth, async (req, res) => {
             (SELECT COUNT(*) FROM vendor_submissions vs2 WHERE vs2.job_id = j.id)::int AS submission_count
      FROM jobs j
      JOIN users u ON u.id = j.employer_id
+     LEFT JOIN companies co ON co.id = u.company_id
      WHERE j.status = 'active'
        AND (j.expires_at IS NULL OR j.expires_at > NOW())
        AND EXISTS (

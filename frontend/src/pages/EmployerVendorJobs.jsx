@@ -110,6 +110,10 @@ export default function EmployerVendorJobs() {
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="flex items-center gap-2">
+                      {job.logo_url && (
+                        <img src={job.logo_url} alt="" className="h-6 object-contain flex-shrink-0"
+                          onError={e => { e.currentTarget.style.display = 'none'; }} />
+                      )}
                       <h3 className="font-semibold text-gray-800">{job.title}</h3>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${job.is_public ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
                         {job.is_public ? 'Open to Public' : 'Vendor Only'}

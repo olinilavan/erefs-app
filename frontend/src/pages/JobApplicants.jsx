@@ -66,7 +66,13 @@ export default function JobApplicants() {
         ) : (
           <>
             <div className="flex justify-between items-start mt-2 mb-1">
-              <h1 className="text-2xl font-bold">{data.job.title}</h1>
+              <div className="flex items-center gap-3">
+                {data.job.logo_url && (
+                  <img src={data.job.logo_url} alt="" className="h-9 object-contain flex-shrink-0"
+                    onError={e => { e.currentTarget.style.display = 'none'; }} />
+                )}
+                <h1 className="text-2xl font-bold">{data.job.title}</h1>
+              </div>
               {totalCount > 0 && (
                 <button onClick={runMatching} disabled={matching}
                   className="text-sm bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition disabled:opacity-50 whitespace-nowrap">

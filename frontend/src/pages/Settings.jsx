@@ -33,6 +33,9 @@ export default function Settings() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [sendingInviteEmail, setSendingInviteEmail] = useState(false);
   const [inviteEmailSent, setInviteEmailSent] = useState(false);
+  const [logoUrl, setLogoUrl] = useState('');
+  const [savingLogo, setSavingLogo] = useState(false);
+  const [logoSaved, setLogoSaved] = useState(false);
 
   useEffect(() => {
     api.get('/api/settings').then(r => setForm(r.data));
@@ -40,7 +43,10 @@ export default function Settings() {
 
   useEffect(() => {
     if (user?.role === 'employer') {
-      api.get('/api/company/team').then(r => setCompanyData(r.data)).catch(() => {});
+      api.get('/api/company/team').then(r => {
+        setCompanyData(r.data);
+        setLogoUrl(r.data.company?.logo_url || '');
+      }).catch(() => {});
     }
   }, [user]);
 
@@ -74,6 +80,19 @@ export default function Settings() {
     navigator.clipboard.writeText(inviteLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  }
+
+  async function saveLogo() {
+    setSavingLogo(true);
+    try {
+      await api.put('/api/company/logo', { logoUrl: logoUrl || null });
+      setLogoSaved(true);
+      setTimeout(() => setLogoSaved(false), 3000);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to save logo');
+    } finally {
+      setSavingLogo(false);
+    }
   }
 
   function resetInvite() {
@@ -257,6 +276,53 @@ export default function Settings() {
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+
+              {form?.is_company_admin && companyData.company && (
+                <div className="pt-1 border-t border-gray-100 space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-800">Company Logo</h3>
+
+                  {logoUrl && (
+                    <div className="flex items-center gap-3">
+                      <img src={logoUrl} alt="Current logo" className="h-10 object-contain"
+                        onError={e => { e.currentTarget.style.display = 'none'; }} />
+                      <button type="button" onClick={() => setLogoUrl('')}
+                        className="text-xs text-red-500 hover:underline">
+                        Remove
+                      </button>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1.5">Upload from computer <span className="text-gray-400">(PNG, JPG, SVG — max 200KB)</span></label>
+                    <input type="file" accept="image/*"
+                      onChange={e => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        if (file.size > 200 * 1024) { alert('Logo must be under 200KB'); e.target.value = ''; return; }
+                        const reader = new FileReader();
+                        reader.onload = ev => setLogoUrl(ev.target.result);
+                        reader.readAsDataURL(file);
+                      }}
+                      className="text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 cursor-pointer" />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1.5">Or paste a URL</label>
+                    <input type="url" placeholder="https://yourcompany.com/logo.png"
+                      value={logoUrl.startsWith('data:') ? '' : logoUrl}
+                      onChange={e => setLogoUrl(e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button type="button" onClick={saveLogo} disabled={savingLogo}
+                      className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition disabled:opacity-50">
+                      {savingLogo ? 'Saving…' : 'Save Logo'}
+                    </button>
+                    {logoSaved && <span className="text-xs text-teal-600">Saved.</span>}
+                  </div>
                 </div>
               )}
 

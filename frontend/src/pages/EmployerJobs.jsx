@@ -305,7 +305,13 @@ export default function EmployerJobs() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <Link to="/employer/dashboard" className="text-sm text-teal-600 hover:underline">← Candidate Pipeline</Link>
-            <h1 className="text-2xl font-bold mt-2">Job Postings</h1>
+            <div className="flex items-center gap-3 mt-2">
+              {jobs.length > 0 && jobs[0].logo_url && (
+                <img src={jobs[0].logo_url} alt="" className="h-8 object-contain"
+                  onError={e => { e.currentTarget.style.display = 'none'; }} />
+              )}
+              <h1 className="text-2xl font-bold">Job Postings</h1>
+            </div>
             <p className="text-gray-500 text-sm mt-1">Post openings and review applicants.</p>
             <div className="flex gap-4 mt-2">
               <Link to="/employer/vendor-network" className="text-xs text-teal-600 hover:underline">Vendor Network →</Link>

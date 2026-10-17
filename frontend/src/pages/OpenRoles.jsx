@@ -119,9 +119,15 @@ export default function OpenRoles() {
               {jobs.map(job => (
                 <div key={job.id} className="bg-white rounded-xl border border-gray-200 p-5">
                   <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-semibold text-gray-800">{job.title}</div>
-                      <div className="text-sm text-gray-500 mt-0.5">{job.company}</div>
+                    <div className="flex items-start gap-3">
+                      {job.logo_url && (
+                        <img src={job.logo_url} alt="" className="h-8 w-8 object-contain flex-shrink-0 mt-0.5"
+                          onError={e => { e.currentTarget.style.display = 'none'; }} />
+                      )}
+                      <div>
+                        <div className="font-semibold text-gray-800">{job.title}</div>
+                        <div className="text-sm text-gray-500 mt-0.5">{job.company}</div>
+                      </div>
                     </div>
                     <span className="text-xs text-gray-400 whitespace-nowrap ml-3">
                       {new Date(job.created_at).toLocaleDateString()}

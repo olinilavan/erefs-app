@@ -33,13 +33,14 @@ router.get('/', optionalAuth, async (req, res) => {
 
   const result = await db.query(
     `SELECT j.id, j.title, j.description, j.location, j.work_requirement, j.created_at,
-       u.company,
+       u.company, co.logo_url,
        EXISTS (
          SELECT 1 FROM job_applications ja WHERE ja.job_id = j.id AND ja.jobseeker_id = $1
        ) AS already_applied,
        COUNT(*) OVER() AS total_count
      FROM jobs j
      JOIN users u ON u.id = j.employer_id
+     LEFT JOIN companies co ON co.id = u.company_id
      WHERE j.is_public = true AND j.status = 'active'
        AND (j.expires_at IS NULL OR j.expires_at > NOW())
      ORDER BY j.created_at DESC
@@ -64,12 +65,13 @@ router.get('/', optionalAuth, async (req, res) => {
 router.get('/flash', optionalAuth, async (req, res) => {
   const result = await db.query(
     `SELECT j.id, j.title, j.description, j.location, j.work_requirement, j.created_at,
-       u.company,
+       u.company, co.logo_url,
        EXISTS (
          SELECT 1 FROM job_applications ja WHERE ja.job_id = j.id AND ja.jobseeker_id = $1
        ) AS already_applied
      FROM jobs j
      JOIN users u ON u.id = j.employer_id
+     LEFT JOIN companies co ON co.id = u.company_id
      WHERE j.flash_status = 'active' AND j.status = 'active' AND j.is_public = true
        AND j.flash_expires_at > NOW()
        AND (j.expires_at IS NULL OR j.expires_at > NOW())
