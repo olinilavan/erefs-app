@@ -109,12 +109,15 @@ router.get('/jobs', auth, async (req, res) => {
 // POST /api/employer/jobs
 router.post('/jobs', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
-  const { title, description, location, workRequirement, isPublic, expiresAt } = req.body;
+  const { title, description, location, workRequirement, isPublic, expiresAt,
+          employmentType, salaryRange, responsibilities, requirements } = req.body;
   if (!title) return res.status(400).json({ error: 'Title is required' });
   const result = await db.query(
-    `INSERT INTO jobs (employer_id, title, description, location, work_requirement, is_public, expires_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-    [req.user.id, title, description || null, location || null, workRequirement || null, !!isPublic, expiresAt || null]
+    `INSERT INTO jobs (employer_id, title, description, location, work_requirement, is_public, expires_at,
+                       employment_type, salary_range, responsibilities, requirements)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+    [req.user.id, title, description || null, location || null, workRequirement || null, !!isPublic, expiresAt || null,
+     employmentType || null, salaryRange || null, responsibilities || null, requirements || null]
   );
   const job = result.rows[0];
 
@@ -142,7 +145,8 @@ router.post('/jobs', auth, async (req, res) => {
 // PATCH /api/employer/jobs/:id
 router.patch('/jobs/:id', auth, async (req, res) => {
   if (req.user.role !== 'employer') return res.status(403).json({ error: 'Forbidden' });
-  const { title, description, location, workRequirement, isPublic, status, expiresAt, note } = req.body;
+  const { title, description, location, workRequirement, isPublic, status, expiresAt, note,
+          employmentType, salaryRange, responsibilities, requirements } = req.body;
   const memberIds = await getCompanyMemberIds(req.user.id);
   const existing = await db.query('SELECT employer_id, title FROM jobs WHERE id = $1 AND employer_id = ANY($2::uuid[])', [req.params.id, memberIds]);
   if (!existing.rows.length) return res.status(404).json({ error: 'Not found' });
@@ -157,10 +161,16 @@ router.patch('/jobs/:id', auth, async (req, res) => {
          is_public = COALESCE($5, is_public),
          status = COALESCE($6, status),
          expires_at = COALESCE($7, expires_at),
-         last_modified_by = $8
-     WHERE id = $9
+         employment_type = COALESCE($8, employment_type),
+         salary_range = COALESCE($9, salary_range),
+         responsibilities = COALESCE($10, responsibilities),
+         requirements = COALESCE($11, requirements),
+         last_modified_by = $12
+     WHERE id = $13
      RETURNING *`,
-    [title, description, location, workRequirement, isPublic, status, expiresAt, req.user.id, req.params.id]
+    [title, description, location, workRequirement, isPublic, status, expiresAt,
+     employmentType, salaryRange, responsibilities, requirements,
+     req.user.id, req.params.id]
   );
 
   const companyId = await getUserCompanyId(req.user.id);
@@ -642,6 +652,7 @@ router.get('/vendors/jobs', auth, async (req, res) => {
   const memberIds = await getCompanyMemberIds(req.user.id);
   const result = await db.query(
     `SELECT j.id, j.title, j.description, j.location, j.work_requirement, j.is_public, j.created_at,
+            j.employment_type, j.salary_range, j.responsibilities, j.requirements,
             u.company, u.id AS buyer_employer_id,
             co.logo_url,
             EXISTS (

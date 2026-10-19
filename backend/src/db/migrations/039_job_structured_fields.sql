@@ -1,0 +1,5 @@
+ALTER TABLE jobs
+  ADD COLUMN IF NOT EXISTS employment_type TEXT,
+  ADD COLUMN IF NOT EXISTS salary_range TEXT,
+  ADD COLUMN IF NOT EXISTS responsibilities TEXT,
+  ADD COLUMN IF NOT EXISTS requirements TEXT;

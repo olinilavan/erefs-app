@@ -7,6 +7,18 @@ import CrossMemberModal from '../components/CrossMemberModal';
 import { useAuth } from '../context/AuthContext';
 
 const WORK_REQUIREMENTS = ['US Citizen', 'Green Card', 'H1B Sponsorship Available', 'Any'];
+const EMPLOYMENT_TYPES = ['Full-time', 'Part-time', 'Contract', 'C2C', 'W2'];
+
+function BulletList({ text, className = '' }) {
+  if (!text) return null;
+  const lines = text.split('\n').filter(l => l.trim());
+  if (!lines.length) return null;
+  return (
+    <ul className={`list-disc pl-4 space-y-0.5 ${className}`}>
+      {lines.map((line, i) => <li key={i} className="text-sm text-gray-600">{line.trim()}</li>)}
+    </ul>
+  );
+}
 
 function ConfirmModal({ message, onConfirm, onCancel }) {
   return (
@@ -34,6 +46,10 @@ function JobForm({ initial, defaultIsPublic, onSubmit, onCancel, submitLabel }) 
   const [description, setDescription] = useState(initial?.description || '');
   const [location, setLocation] = useState(initial?.location || '');
   const [workRequirement, setWorkRequirement] = useState(initial?.work_requirement || '');
+  const [employmentType, setEmploymentType] = useState(initial?.employment_type || '');
+  const [salaryRange, setSalaryRange] = useState(initial?.salary_range || '');
+  const [responsibilities, setResponsibilities] = useState(initial?.responsibilities || '');
+  const [requirements, setRequirements] = useState(initial?.requirements || '');
   const [isPublic, setIsPublic] = useState(initial ? !!initial.is_public : defaultIsPublic !== false);
   const [expiresAt, setExpiresAt] = useState(initial?.expires_at ? initial.expires_at.slice(0, 10) : '');
   const [saving, setSaving] = useState(false);
@@ -44,7 +60,8 @@ function JobForm({ initial, defaultIsPublic, onSubmit, onCancel, submitLabel }) 
     setError('');
     setSaving(true);
     try {
-      await onSubmit({ title, description, location, workRequirement, isPublic, expiresAt: expiresAt || null });
+      await onSubmit({ title, description, location, workRequirement, employmentType, salaryRange,
+                       responsibilities, requirements, isPublic, expiresAt: expiresAt || null });
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong');
       setSaving(false);
@@ -57,18 +74,40 @@ function JobForm({ initial, defaultIsPublic, onSubmit, onCancel, submitLabel }) 
       <input type="text" placeholder="Job title" required value={title}
         onChange={e => setTitle(e.target.value)}
         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-      <textarea rows={4} placeholder="Description" value={description}
+      <textarea rows={3} placeholder="About the role (brief summary)" value={description}
         onChange={e => setDescription(e.target.value)}
         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
       <div className="grid md:grid-cols-2 gap-4">
         <input type="text" placeholder="Location (e.g. Austin, TX or Remote)" value={location}
           onChange={e => setLocation(e.target.value)}
           className="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+        <select value={employmentType} onChange={e => setEmploymentType(e.target.value)}
+          className="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+          <option value="">Employment type...</option>
+          {EMPLOYMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
+      <div className="grid md:grid-cols-2 gap-4">
         <select value={workRequirement} onChange={e => setWorkRequirement(e.target.value)}
           className="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500">
           <option value="">Work requirement...</option>
           {WORK_REQUIREMENTS.map(w => <option key={w} value={w}>{w}</option>)}
         </select>
+        <input type="text" placeholder="Salary range (e.g. $80k–$120k or DOE)" value={salaryRange}
+          onChange={e => setSalaryRange(e.target.value)}
+          className="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+      </div>
+      <div>
+        <label className="block text-sm text-gray-600 mb-1">Responsibilities <span className="text-gray-400">(one per line)</span></label>
+        <textarea rows={4} placeholder="• Coordinate resource assignments&#10;• Monitor project budgets&#10;• Prepare weekly reports" value={responsibilities}
+          onChange={e => setResponsibilities(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+      </div>
+      <div>
+        <label className="block text-sm text-gray-600 mb-1">Requirements <span className="text-gray-400">(one per line)</span></label>
+        <textarea rows={4} placeholder="• Bachelor's degree in related field&#10;• 3+ years of experience&#10;• Strong communication skills" value={requirements}
+          onChange={e => setRequirements(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500" />
       </div>
       <div>
         <label className="block text-sm text-gray-600 mb-1">Posting expires</label>
@@ -221,7 +260,27 @@ function JobCard({ job, currentUserId, onUpdated, onDeleted }) {
         </span>
       </div>
 
-      {job.description && <p className="text-sm text-gray-600 mt-3 line-clamp-3">{job.description}</p>}
+      <div className="flex flex-wrap gap-2 mt-2">
+        {job.employment_type && (
+          <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">{job.employment_type}</span>
+        )}
+        {job.salary_range && (
+          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">{job.salary_range}</span>
+        )}
+      </div>
+      {job.description && <p className="text-sm text-gray-600 mt-2 line-clamp-2">{job.description}</p>}
+      {job.responsibilities && (
+        <div className="mt-2">
+          <p className="text-xs font-medium text-gray-500 mb-1">Responsibilities</p>
+          <BulletList text={job.responsibilities} />
+        </div>
+      )}
+      {job.requirements && (
+        <div className="mt-2">
+          <p className="text-xs font-medium text-gray-500 mb-1">Requirements</p>
+          <BulletList text={job.requirements} />
+        </div>
+      )}
 
       {job.flash_status === 'pending_payment' && (
         <p className="text-xs text-yellow-700 bg-yellow-50 rounded-lg px-3 py-2 mt-3">

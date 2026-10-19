@@ -34,6 +34,7 @@ router.get('/', optionalAuth, async (req, res) => {
   const result = await db.query(
     `SELECT j.id, j.title, j.description, j.location, j.work_requirement, j.created_at,
        u.company, co.logo_url,
+       j.employment_type, j.salary_range, j.responsibilities, j.requirements,
        EXISTS (
          SELECT 1 FROM job_applications ja WHERE ja.job_id = j.id AND ja.jobseeker_id = $1
        ) AS already_applied,
@@ -66,6 +67,7 @@ router.get('/flash', optionalAuth, async (req, res) => {
   const result = await db.query(
     `SELECT j.id, j.title, j.description, j.location, j.work_requirement, j.created_at,
        u.company, co.logo_url,
+       j.employment_type, j.salary_range, j.responsibilities, j.requirements,
        EXISTS (
          SELECT 1 FROM job_applications ja WHERE ja.job_id = j.id AND ja.jobseeker_id = $1
        ) AS already_applied

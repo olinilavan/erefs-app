@@ -120,7 +120,11 @@ export default function EmployerVendorJobs() {
                       </span>
                     </div>
                     <div className="text-sm text-gray-500">{job.company}</div>
-                    {job.location && <div className="text-xs text-gray-400 mt-0.5">{job.location}</div>}
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {job.location && <span className="text-xs text-gray-400">📍 {job.location}</span>}
+                      {job.employment_type && <span className="text-xs text-blue-600">💼 {job.employment_type}</span>}
+                      {job.salary_range && <span className="text-xs text-gray-500">💰 {job.salary_range}</span>}
+                    </div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     {job.already_submitted ? (
@@ -143,6 +147,26 @@ export default function EmployerVendorJobs() {
                   </div>
                 </div>
                 {job.description && <p className="text-sm text-gray-600 mt-2">{job.description}</p>}
+                {job.responsibilities && (
+                  <div className="mt-2">
+                    <p className="text-xs font-semibold text-gray-500 mb-1">Responsibilities</p>
+                    <ul className="list-disc pl-4 space-y-0.5">
+                      {job.responsibilities.split('\n').filter(l => l.trim()).map((l, i) => (
+                        <li key={i} className="text-sm text-gray-600">{l.trim()}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {job.requirements && (
+                  <div className="mt-2">
+                    <p className="text-xs font-semibold text-gray-500 mb-1">Requirements</p>
+                    <ul className="list-disc pl-4 space-y-0.5">
+                      {job.requirements.split('\n').filter(l => l.trim()).map((l, i) => (
+                        <li key={i} className="text-sm text-gray-600">{l.trim()}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {openJobId === job.id && (
                   <SubmitForm job={job} onSubmitted={() => { setOpenJobId(null); load(); }} onCancel={() => setOpenJobId(null)} />
                 )}

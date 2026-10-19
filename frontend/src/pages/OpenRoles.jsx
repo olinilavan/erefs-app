@@ -136,10 +136,32 @@ export default function OpenRoles() {
 
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 mt-3">
                     {job.location && <span>📍 {job.location}</span>}
+                    {job.employment_type && <span>💼 {job.employment_type}</span>}
                     {job.work_requirement && <span>🪪 {job.work_requirement}</span>}
+                    {job.salary_range && <span>💰 {job.salary_range}</span>}
                   </div>
 
                   {job.description && <p className="text-sm text-gray-600 mt-3">{job.description}</p>}
+                  {job.responsibilities && (
+                    <div className="mt-3">
+                      <p className="text-xs font-semibold text-gray-500 mb-1">Responsibilities</p>
+                      <ul className="list-disc pl-4 space-y-0.5">
+                        {job.responsibilities.split('\n').filter(l => l.trim()).map((l, i) => (
+                          <li key={i} className="text-sm text-gray-600">{l.trim()}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {job.requirements && (
+                    <div className="mt-3">
+                      <p className="text-xs font-semibold text-gray-500 mb-1">Requirements</p>
+                      <ul className="list-disc pl-4 space-y-0.5">
+                        {job.requirements.split('\n').filter(l => l.trim()).map((l, i) => (
+                          <li key={i} className="text-sm text-gray-600">{l.trim()}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
                   {job.already_applied || sentIds.includes(job.id) ? (
                     <button disabled
